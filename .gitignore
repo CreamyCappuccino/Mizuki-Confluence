@@ -1,0 +1,66 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node / frontend
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+dist/
+build/
+.next/
+.vite/
+coverage/
+
+# Local databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+data/
+
+# Private/local manuscript sources
+private-content/
+local-content/
+content/private/
+content/local/
+
+# Temporary / generated files
+.tmp/
+tmp/
+.cache/
+*.log
+
+# OS / tooling miscellany
+Thumbs.db
