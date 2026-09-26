@@ -112,8 +112,8 @@ class PrivateStagingStore:
             f'content="{digest}"',
             f'<meta name="robots" content="{ROBOTS}">',
         )
-        if not all(marker in text for marker in markers):
-            return StageLookup("failed", error_code="artifact_mismatch", error_summary="article markers differ")
+        if not all(marker in text for marker in markers) or str(payload["rendered_html"]) not in text:
+            return StageLookup("failed", error_code="artifact_mismatch", error_summary="article markers/body differ")
         if not listed:
             return StageLookup("failed", error_code="listing_missing", error_summary="published article is not listed")
         if (self.site / "sitemap.xml").exists():
