@@ -24,12 +24,20 @@ prototype builder does not prescribe the backend stack.
 
 ## Pressroom connection — Phase 1 implementation gate
 
-[Phase 1 contract proposal](docs/CONFLUENCE_PRESSROOM_CONTRACT_V1.md) and
-[one synthetic article fixture](tests/fixtures/confluence/README.md) are ready
-for integration review. The offline validator and 18 unit tests check payload
-shape, identity, dates, taxonomy, public-field boundaries, and deterministic hashes.
-This is not a registered destination or a completed PUB/APR/JOB publishing path.
-The v0.2 visual prototype remains unchanged.
+[Phase 1 contract baseline](docs/CONFLUENCE_PRESSROOM_CONTRACT_V1.md) and
+[one synthetic article fixture](tests/fixtures/confluence/README.md) are aligned
+with the Pressroom design review. The offline validator and 19 unit tests check
+payload shape, identity, dates, taxonomy, public-field boundaries, deterministic
+hashes, and the separation between article visibility and site-wide discovery.
+
+Phase 1 article `visibility=public` means listed/readable **inside Confluence**
+after a verified Confluence publish. It does not opt the site into external
+discovery. The destination policy separately discourages discovery with
+`noindex, nofollow, noarchive` and no generated sitemap. Draft/private content
+never enters the public projection.
+
+This is still not a registered destination or a completed PUB/APR/JOB
+publishing path. The v0.2 visual prototype remains unchanged.
 
 ```sh
 python3 tools/validate_confluence_contract.py tests/fixtures/confluence/publication_v1.json
