@@ -22,6 +22,20 @@ The real publishing flow, author model, Pressroom integration, and production
 frontend/data architecture remain separate work. The optional Python stdlib
 prototype builder does not prescribe the backend stack.
 
+## Pressroom connection — contract review gate
+
+[Phase 1 contract proposal](docs/CONFLUENCE_PRESSROOM_CONTRACT_V1.md) and
+[one synthetic article fixture](tests/fixtures/confluence/README.md) are ready
+for integration review. The offline validator and 18 unit tests check payload
+shape, identity, dates, taxonomy, public-field boundaries, and deterministic hashes.
+This is not a registered destination or a completed PUB/APR/JOB publishing path.
+The v0.2 visual prototype remains unchanged.
+
+```sh
+python3 tools/validate_confluence_contract.py tests/fixtures/confluence/publication_v1.json
+python3 -m unittest discover -s tests -p 'test_confluence_contract.py' -v
+```
+
 ## Repository principle
 
 **Public code, private content.**
