@@ -1,6 +1,11 @@
 {
   "fixture_only": true,
   "site_base_url": "https://confluence.invalid",
+  "site_policy": {
+    "external_discovery": "discouraged",
+    "robots": "noindex, nofollow, noarchive",
+    "generate_sitemap": false
+  },
   "payload_snapshot": {
     "schema_version": "confluence.publication.v1",
     "destination_key": "confluence",
@@ -41,7 +46,7 @@
     ],
     "published_on": "2026-09-26",
     "content_updated_at": "2026-09-26T21:00:00+08:00",
-    "visibility": "unlisted"
+    "visibility": "public"
   },
-  "expected_payload_sha256": "dbf725ea30e225a9c24abfedb66525b5598e8f106e6d54e8554e89511af6c21a"
+  "expected_payload_sha256": "1661b7c19f54c629e001895ce9b7e40fb1d5b9a27a380f2ae50a186e6bd3fa58"
 }
