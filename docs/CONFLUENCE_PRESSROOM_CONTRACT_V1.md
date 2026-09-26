@@ -1,6 +1,6 @@
 # Confluence × Pressroom — Phase 1 contract v1
 
-Status: **review candidate; offline fixture checks implemented; live adapter not registered**.
+Status: **design-aligned Phase 1 baseline; offline fixture checks implemented; provider/rehearsal wiring pending**.
 Date: 2026-09-26. Frontend baseline: `CONFLUENCE_VISUAL_V02.md`.
 
 ## 1. Scope and ownership
@@ -43,12 +43,18 @@ Neither absence blocks the Phase 1 text-article fixture.
 Proposed registration: key `confluence`, adapter kind `confluence-static`,
 `publication_mode=durable_release`, pipeline key `confluence-staging-v1`,
 preview/publish/unpublish enabled, `external_side_effect=true`, two-step approval
-required. Use an isolated rehearsal DB/registry for staging, not a second
-`confluence` binding in the running production registry. Staging transport,
-private output location, and provider composition must be agreed before enabling
-this registration; no default production endpoint is installed. Freeze and
-verify the destination base/pipeline identity so a staging approval cannot be
-retargeted to production by changing configuration.
+required. The approved destination configuration also pins the site-wide discovery
+policy: `external_discovery=discouraged`, HTML robots hint
+`noindex, nofollow, noarchive`, and sitemap generation disabled. This site policy
+is separate from article visibility; it discourages external discovery without
+turning published Confluence entries into per-article unlisted content.
+
+Use an isolated rehearsal DB/registry for staging, not a second `confluence`
+binding in the running production registry. Staging transport, private output
+location, and provider composition must be agreed before enabling this
+registration; no default production endpoint is installed. Freeze and verify
+the destination base/pipeline/site-policy identity so a staging approval cannot
+be retargeted to production by changing configuration.
 
 Implement the existing `RecoverableDestinationAdapter`, including `prepare`,
 `publish_dispatch`, `unpublish_dispatch`, and `lookup_dispatch`. The Confluence
@@ -90,7 +96,7 @@ proposed example. It is **not** a serialized whole `ManuscriptSnapshot` or
 | `tags` | String array; may be `[]` |
 | `published_on` | Explicit, frozen Confluence display date, `YYYY-MM-DD` |
 | `content_updated_at` | Exact revision's content update time, offset ISO8601 or null |
-| `visibility` | Phase 1 selected publication intent: `unlisted` only |
+| `visibility` | Phase 1 article listing/access intent: `public` only; readable without authentication and included in Confluence's own index/search/category/tag/reply surfaces once the Confluence binding is verified published. External discovery is controlled separately by destination site policy. |
 
 All keys are present, including nullable ones. Unknown fields require a contract
 change. No raw Markdown, actor, session reference, source path, binding UUID,
@@ -118,8 +124,12 @@ explicit date is approved. This is an editorial display date, **not** a claim of
 the time at which a new Confluence publication succeeded.
 
 Actual Confluence `first_published_at` / `last_published_at` come from its own
-successful ledger history and belong in verified projection/release metadata,
-outside this prepared payload. Neither replaces `content_updated_at`.
+successful ledger history and stay in private receipt/ledger evidence during
+Phase 1. They are **not** required by the initial static build or delivery
+readback, because they are only authoritative after successful destination
+readback and ledger finalization. If a later public metadata schema exposes them,
+that requires an explicit re-projection step rather than a circular requirement
+on the first publish. Neither replaces `content_updated_at`.
 Display timezone is a site setting, initially `Asia/Taipei`; timestamps retain
 their offsets. Scheduling / `publishable_at` is not part of Phase 1.
 
@@ -158,9 +168,20 @@ changing an already-approved payload.
 | `unpublished` binding | Remove from index/search/detail; old URL must not expose the body |
 | Delivery result unknown | Reconcile exact dispatch; do not blindly publish again |
 
-`visibility=unlisted` is intended access/discoverability policy, not authorization.
-It means readable without authentication at the destination URL; `noindex` is
-not secrecy. Truly private writing is excluded from this publication pipeline.
+`visibility=public` is the Phase 1 **Confluence-internal listing/access intent**,
+not a claim that publication has already succeeded and not permission to promote
+the site externally. Once the Confluence binding is verified `published`, the
+entry is readable without authentication and is eligible for Confluence's own
+top/index, search, category, tag, archive, and reply-related surfaces.
+
+External discovery is a separate site-wide destination policy:
+`external_discovery=discouraged`, `noindex, nofollow, noarchive`, and no generated
+sitemap in Phase 1. These are crawler/discovery controls, not authentication or
+secrecy guarantees; external links or noncompliant crawlers can still reveal a
+URL. Draft/private writing is excluded from the public projection entirely.
+A future per-article `unlisted` mode may mean direct-URL readable but omitted from
+Confluence listings, but it is intentionally not implemented in Phase 1.
+
 The candidate contains no premature `state=published`. AIL's binding and
 snapshot-wide `is_published` never decide Confluence visibility.
 
@@ -179,7 +200,12 @@ Serialize writes per binding and reject superseded work before activation.
 Readback checks the delivered route and expected revision/payload **plus the
 actual deployed artifact/body**, not merely an echoed success flag or copied
 JSON marker. Generated manifest/file digests and route checks must agree with
-the approved candidate. Keep operational evidence private.
+the approved candidate. For a verified published `visibility=public` entry,
+acceptance also requires positive presence in Confluence's own listing/search/
+browse projection; draft/private/withdrawn entries require negative readback for
+both body and listing surfaces. Site output must preserve the approved discovery
+policy (`noindex, nofollow, noarchive`) and must not generate a sitemap in
+Phase 1. Keep operational evidence private.
 
 `lookup_dispatch` uses existing outcomes `succeeded`, `failed`, `unknown`.
 An unavailable URL or a timeout alone is not definitive absence/failure.
@@ -192,17 +218,30 @@ readback is uncertain, keep the outcome unresolved; do not mark it complete.
 
 ## 7. Implementation order and acceptance gate
 
-1. **This gate:** review this spec, fixture, and offline validator with Pressroom.
-2. Agree the local dependency revision, provider composition, HTML sanitizer,
-   staging storage/transport, and route/date choices.
-3. Connect fixture-backed index/detail rendering without replacing the v0.2
-   visual baseline or pretending its ten sample articles are production data.
-4. Implement the Confluence provider, prepared payload, recoverable dispatch,
-   versioned projection/static builder, and staging readback.
-5. In an isolated rehearsal environment, create/import one synthetic ART using
+1. **Contract gate complete:** keep this spec, synthetic fixture, and offline
+   validator aligned with the reviewed route/date/visibility/discovery policy.
+2. Pin the actual local Pressroom dependency revision and Confluence provider
+   composition; keep the local checkout identity distinct from deployed-runtime
+   proof. Freeze staging storage/transport and the destination base/pipeline/site
+   policy in the approved configuration.
+3. Pass synthetic Markdown through the **real Pressroom renderer** and the
+   Confluence provider's pre-PUB normalize/sanitize/link policy. If heading IDs
+   or fragments change, update local links before the candidate is frozen. Hash
+   this prepared renderer-derived HTML; the offline `HTMLParser` remains only a
+   fixture checker, never the production sanitizer.
+4. Connect isolated fixture/renderer-backed detail plus Confluence-internal
+   listing/search/browse projection without replacing the v0.2 visual baseline
+   or pretending its ten sample articles are production data. Verify site-level
+   noindex policy and sitemap non-generation separately from article visibility.
+5. Implement the Confluence provider, prepared payload, recoverable dispatch,
+   versioned projection/static builder, and private staging readback.
+6. In an isolated rehearsal environment, create/import one synthetic ART using
    real returned refs, then `preview/PUB -> APR -> JOB -> staging -> readback`.
-6. Exercise same-JOB retry, unknown-result lookup, one revision, stale work,
-   and unpublish including the old URL. Inspect actual ledger outcomes.
+   The first build/readback depends only on approved `published_on` and
+   `content_updated_at`; actual successful ledger timestamps finalize afterward.
+7. Exercise same-key retry, external-success/ledger-failure unknown recovery,
+   one revision, stale work, and unpublish including the old route and every
+   listing/search/browse surface. Inspect actual ledger outcomes.
 
 The repository fixture uses syntactically shaped fake ART/AUT IDs solely for
 offline checks. They are **not reserved IDs** and must never be looked up in a
