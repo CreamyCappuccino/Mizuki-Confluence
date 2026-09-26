@@ -111,7 +111,12 @@ class ConfluenceDestinationAdapter:
     def prepare(self, manuscript_ref: str, revision_ref: str | None, destination_metadata):
         from pressroom.destinations import PreparedPublication, PublicationPreview
 
-        prepared = self._core.prepare(manuscript_ref, revision_ref, destination_metadata)
+        metadata = destination_metadata
+        if metadata is None:
+            existing_date = self._staging.published_on(manuscript_ref)
+            if existing_date is not None:
+                metadata = {"published_on": existing_date}
+        prepared = self._core.prepare(manuscript_ref, revision_ref, metadata)
         return PreparedPublication(
             manuscript_id=prepared.manuscript_id,
             revision_id=prepared.revision_id,
@@ -187,6 +192,20 @@ class ConfluenceDestinationAdapter:
             destination_url=receipt.destination_url,
             state="unpublished",
             publication_ref=dispatch.attempt_ref,
+        )
+
+    def status(self, manuscript_ref: str):
+        from pressroom.destinations import PublicationStatus
+
+        current = self._reader.get(manuscript_ref)
+        published = self._staging.published_payload(manuscript_ref)
+        return PublicationStatus(
+            manuscript_ref=current.manuscript_ref,
+            destination=self.key,
+            state="published" if published is not None else "unpublished",
+            current_revision_ref=current.revision_ref,
+            published_revision_ref=(str(published["revision_ref"]) if published else None),
+            destination_url=(str(published["destination_url"]) if published else None),
         )
 
     def lookup_dispatch(self, dispatch):
