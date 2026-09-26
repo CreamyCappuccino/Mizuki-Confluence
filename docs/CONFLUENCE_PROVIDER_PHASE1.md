@@ -83,15 +83,15 @@ New provider tests:
 PYTHONPATH=src:tools python3 -m unittest tests/test_phase1_provider.py -v
 ```
 
-At handoff: 32/32 new tests pass, including real-renderer seam normalization, deterministic payload hashing, internal discovery, no sitemap, same-key idempotency, body tamper readback, revision replacement, recovery lookup and HTTP 200 -> 404 withdrawal.
+At handoff: 35/35 new tests pass, including real-renderer seam normalization, deterministic payload hashing, internal discovery, no sitemap, same-key idempotency, body tamper readback, strict index+search agreement, configured base-path routing, revision replacement, recovery lookup and HTTP 200 -> 404 withdrawal.
 
-The existing 19 contract tests remain a separate gate, so the combined branch target is 51 tests once exercised from the repository checkout.
+The existing 19 contract tests remain a separate gate, so the combined branch target is 54 tests once exercised from the repository checkout.
 
 ## Before main / before rehearsal
 
 The branch must still be run against the actual local Pressroom checkout used for rehearsal:
 
-1. existing 19 contract tests + new 30 provider tests;
+1. existing 19 contract tests + new 35 provider tests;
 2. `renderer/verify_fixture.py --rerender` from the pinned Pressroom environment;
 3. `pressroom_adapter.py` import/signature compatibility with local Pressroom HEAD;
 4. if available, a temporary/rehearsal DB + private temp staging prepare/dispatch/readback smoke.
