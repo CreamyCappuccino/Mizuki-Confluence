@@ -133,6 +133,12 @@ class DependencyAndPayloadTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_publication_payload(article(), site_base_url="https://confluence.invalid", published_on=date(2026,9,26), visibility="unlisted")
 
+    def test_actual_ledger_timestamps_are_not_candidate_fields(self):
+        value = payload()
+        self.assertNotIn("first_published_at", value)
+        self.assertNotIn("last_published_at", value)
+        self.assertNotIn("state", value)
+
 
 class FakeResolver:
     def __init__(self, resolved):
@@ -213,6 +219,12 @@ class StagingTests(unittest.TestCase):
         (self.root/"site/index.html").write_text("broken", encoding="utf-8")
         self.assertEqual(self.store.lookup("publish", self.payload).error_code, "listing_missing")
 
+    def test_tampered_article_body_fails_readback(self):
+        self.store.publish(self.payload, idempotency_key="job-1")
+        article_path = self.root/"site/ja/articles/art99990001.html"
+        article_path.write_text(article_path.read_text(encoding="utf-8").replace("合成fixtureのみ", "改ざん"), encoding="utf-8")
+        self.assertEqual(self.store.lookup("publish", self.payload).error_code, "artifact_mismatch")
+
     def test_same_key_same_payload_is_idempotent(self):
         a = self.store.publish(self.payload, idempotency_key="job-1")
         b = self.store.publish(self.payload, idempotency_key="job-1")
@@ -237,6 +249,12 @@ class StagingTests(unittest.TestCase):
         self.assertNotIn("ART99990001", (self.root/"site/index.html").read_text(encoding="utf-8"))
         self.assertNotIn("ART99990001", (self.root/"site/search.json").read_text(encoding="utf-8"))
         self.assertEqual(self.store.lookup("unpublish", self.payload).outcome, "succeeded")
+
+    def test_unpublish_same_key_same_payload_is_idempotent(self):
+        self.store.publish(self.payload, idempotency_key="job-1")
+        first = self.store.unpublish(self.payload, idempotency_key="job-2")
+        second = self.store.unpublish(self.payload, idempotency_key="job-2")
+        self.assertEqual(first, second)
 
     def test_revision_replaces_same_route_without_duplicate_entry(self):
         self.store.publish(self.payload, idempotency_key="job-1")
