@@ -21,8 +21,9 @@ AUTHOR_FIELDS = frozenset(
     "author_ref persona_name harness model role provenance_source".split()
 )
 FIXTURE_FIELDS = frozenset(
-    "fixture_only site_base_url payload_snapshot expected_payload_sha256".split()
+    "fixture_only site_base_url site_policy payload_snapshot expected_payload_sha256".split()
 )
+SITE_POLICY_FIELDS = frozenset("external_discovery robots generate_sitemap".split())
 MAX_BYTES = 2_000_000
 
 
@@ -63,6 +64,17 @@ def payload_sha256(payload):
     return hashlib.sha256(raw).hexdigest()
 
 
+def validate_site_policy(policy):
+    """Validate site-wide discovery policy separately from article visibility."""
+    _object(policy, SITE_POLICY_FIELDS, "site_policy")
+    if policy["external_discovery"] != "discouraged":
+        raise ContractError("site_policy.external_discovery must be discouraged")
+    if policy["robots"] != "noindex, nofollow, noarchive":
+        raise ContractError("site_policy.robots must keep the agreed discovery hint")
+    if policy["generate_sitemap"] is not False:
+        raise ContractError("site_policy.generate_sitemap must be false")
+
+
 def validate_payload(payload, *, site_base_url):
     """Validate the candidate shape. Passing this is NOT publication authority."""
     _object(payload, FIELDS, "payload_snapshot")
@@ -83,8 +95,8 @@ def validate_payload(payload, *, site_base_url):
         raise ContractError("edition_ref: EDN reference or null required")
     if payload["locale"] not in ("ja", "en"):
         raise ContractError("locale: ja/en required")
-    if payload["visibility"] != "unlisted":
-        raise ContractError("Phase 1 exposes only explicitly selected unlisted writing")
+    if payload["visibility"] != "public":
+        raise ContractError("Phase 1 article visibility must be public within Confluence")
     if payload["destination_ref"] != f"confluence:{ref}":
         raise ContractError("destination_ref: wrong stable identity")
     validate_https_url(site_base_url)
@@ -167,6 +179,7 @@ def load_fixture(path):
     _text(doc["site_base_url"], "site_base_url", limit=2000)
     if urlsplit(doc["site_base_url"]).hostname != "confluence.invalid":
         raise ContractError("fixture destination must be confluence.invalid")
+    validate_site_policy(doc["site_policy"])
     validate_payload(doc["payload_snapshot"], site_base_url=doc["site_base_url"])
     digest = payload_sha256(doc["payload_snapshot"])
     if digest != doc["expected_payload_sha256"]:
@@ -181,13 +194,13 @@ def main():
     try:
         fixture = load_fixture(args.fixture)
     except (OSError, TypeError, ValueError) as exc:
-        # Never echo payloads or private paths in diagnostic output.
         reason = str(exc) if isinstance(exc, ContractError) else "unable to read fixture"
         print(f"contract: rejected | {reason}")
         return 1
     payload = fixture["payload_snapshot"]
     print(f'contract: valid | {payload["manuscript_ref"]} / {payload["revision_ref"]}')
     print(f'sha256: {fixture["expected_payload_sha256"]}')
+    print("visibility: public | external discovery: discouraged")
     print("mode: fixture-only | DB/network/publication: not used")
     return 0
 
