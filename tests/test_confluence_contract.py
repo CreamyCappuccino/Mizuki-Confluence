@@ -11,10 +11,15 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from contract_html_policy import ContractError, validate_fixture_html
-from validate_confluence_contract import load_fixture, payload_sha256, validate_payload
+from validate_confluence_contract import (
+    load_fixture,
+    payload_sha256,
+    validate_payload,
+    validate_site_policy,
+)
 
 FIXTURE = ROOT / "tests/fixtures/confluence/publication_v1.json"
-HASH = "dbf725ea30e225a9c24abfedb66525b5598e8f106e6d54e8554e89511af6c21a"
+HASH = "1661b7c19f54c629e001895ce9b7e40fb1d5b9a27a380f2ae50a186e6bd3fa58"
 
 
 class ContractTests(unittest.TestCase):
@@ -59,7 +64,8 @@ class ContractTests(unittest.TestCase):
     def test_internal_or_cross_destination_fields_are_rejected(self):
         for field in (
             "binding_id", "actor", "session_ref", "source_relative_path",
-            "markdown", "is_published", "published_at", "publishable_at", "state"
+            "markdown", "is_published", "published_at", "publishable_at", "state",
+            "first_published_at", "last_published_at", "external_discovery",
         ):
             with self.subTest(field=field):
                 candidate = dict(self.payload, **{field: "must-not-export"})
@@ -87,12 +93,31 @@ class ContractTests(unittest.TestCase):
                          destination_url=self.base + "/en/articles/art99990001.html")
         self.check(candidate)
 
-    def test_visibility_is_only_candidate_intent(self):
-        for value in ("private", "public", "published", None):
+    def test_visibility_is_article_listing_intent(self):
+        self.assertEqual(self.payload["visibility"], "public")
+        self.check(self.payload)
+        for value in ("private", "unlisted", "published", None):
             with self.subTest(value=value):
                 with self.assertRaises(ContractError):
                     self.check(dict(self.payload, visibility=value))
+        self.assertNotIn("external_discovery", self.payload)
         self.assertNotIn("is_published", self.payload)
+
+    def test_site_discovery_policy_is_separate_and_pinned(self):
+        policy = self.fixture["site_policy"]
+        self.assertEqual(policy["external_discovery"], "discouraged")
+        self.assertFalse(policy["generate_sitemap"])
+        validate_site_policy(policy)
+        cases = [
+            dict(policy, external_discovery="normal"),
+            dict(policy, robots="index, follow"),
+            dict(policy, generate_sitemap=True),
+            {"external_discovery": "discouraged"},
+        ]
+        for candidate in cases:
+            with self.subTest(candidate=candidate):
+                with self.assertRaises(ContractError):
+                    validate_site_policy(candidate)
 
     def test_date_rules_and_unknown_values(self):
         self.check(dict(self.payload, content_updated_at=None,
@@ -186,9 +211,11 @@ class ContractTests(unittest.TestCase):
         validate_fixture_html(html)
 
     def test_fixture_gate_and_hash_tampering(self):
+        bad_policy = dict(self.fixture["site_policy"], generate_sitemap=True)
         for change in [
             {"fixture_only": False},
             {"site_base_url": "https://production.invalid"},
+            {"site_policy": bad_policy},
             {"expected_payload_sha256": "0" * 64},
         ]:
             with self.subTest(change=change), tempfile.TemporaryDirectory() as d:
@@ -210,6 +237,7 @@ class ContractTests(unittest.TestCase):
             capture_output=True, text=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("visibility: public | external discovery: discouraged", result.stdout)
         self.assertIn("DB/network/publication: not used", result.stdout)
         self.assertNotIn(self.payload["rendered_html"], result.stdout)
 
