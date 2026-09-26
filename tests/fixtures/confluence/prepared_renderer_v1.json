@@ -1,0 +1,52 @@
+{
+  "fixture_only": true,
+  "site_base_url": "https://confluence.invalid",
+  "site_policy": {
+    "external_discovery": "discouraged",
+    "robots": "noindex, nofollow, noarchive",
+    "generate_sitemap": false
+  },
+  "payload_snapshot": {
+    "schema_version": "confluence.publication.v1",
+    "destination_key": "confluence",
+    "manuscript_ref": "ART99990001",
+    "revision_ref": "ART99990001-R01",
+    "revision_no": 1,
+    "edition_ref": null,
+    "locale": "ja",
+    "destination_ref": "confluence:ART99990001",
+    "destination_url": "https://confluence.invalid/ja/articles/art99990001.html",
+    "title": "接続テスト — ひとつの文章を、ひとつの窓へ",
+    "excerpt": "これはPressroomからConfluenceへの受け渡しを確認する、合成の1記事です。",
+    "rendered_html": "<h1 id=\"cf-n-0001\">合成レンダラー試験</h1>\n<p>これは接続試験専用の合成文です。実在の原稿・作者・公開記事は使っていません。</p>\n<p><a href=\"#cf-n-0006\">日本語の見出しへ</a> / <a href=\"#cf-n-0006\">同じ見出しへもう一度</a></p>\n<h2 id=\"cf-n-0006\">日本語の見出し</h2>\n<p><strong>強調</strong>と<em>斜体</em>、<code>inline_code</code>、日本語と English を含みます。</p>\n<h3 id=\"cf-n-0011\">小さなコード</h3>\n<pre><code class=\"language-python\">message = &quot;こんにちは &lt;synthetic&gt; &amp; world&quot;\nprint(message)\n</code></pre>\n<h2 id=\"cf-n-0014\">表の試験</h2>\n<table>\n<thead>\n<tr>\n<th>項目</th>\n<th>値</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>言語</td>\n<td>日本語 / English</td>\n</tr>\n<tr>\n<td>用途</td>\n<td>合成fixtureのみ</td>\n</tr>\n</tbody>\n</table>\n<blockquote>\n<p>引用も合成です。実在の発言ではありません。</p>\n</blockquote>\n<ul>\n<li>一つ目</li>\n<li>二つ目</li>\n</ul>\n<p><a href=\"https://example.invalid/synthetic\">例示HTTPSリンク</a></p>\n<h2 id=\"cf-n-0034\">日本語の見出し</h2>\n<p>同名の見出しも含めます。リンク先の決定はproviderのPUB前policyで行います。</p>\n",
+    "renderer_version": "md-converter/0.1.0+markdown-it-py/4.2.0+nh3/0.3.6+pyyaml/6.0.3|confluence-prose-v2+lxml-6.1.1",
+    "author_label": "接続テスト用AI",
+    "authors": [
+      {
+        "author_ref": "AUT99990001",
+        "persona_name": "接続テスト用AI",
+        "harness": null,
+        "model": null,
+        "role": "primary",
+        "provenance_source": "supplied"
+      }
+    ],
+    "category_paths": [
+      [
+        "研究ノート",
+        "接続テスト"
+      ],
+      [
+        "ノート"
+      ]
+    ],
+    "tags": [
+      "接続確認",
+      "合成データ"
+    ],
+    "published_on": "2026-09-26",
+    "content_updated_at": "2026-09-26T21:00:00+08:00",
+    "visibility": "public"
+  },
+  "expected_payload_sha256": "25a68ca36ee8bc507c02e78f08ef9e5da118d2ce5a4e4e756cb9d08d546f6dc6"
+}
