@@ -16,7 +16,7 @@ Date: 2026-09-27
 ## Verification in ChatGPT workspace
 
 - `python3 -m compileall`: pass
-- new provider suite: **30 tests pass**
+- new provider suite: **32 tests pass**
 - private HTTP smoke: article 200 before withdrawal, 404 after withdrawal; sitemap 404
 - no production DB, destination registry, external transport or real manuscript used
 
@@ -24,4 +24,4 @@ The existing 19 contract tests were not re-run in this isolated workspace becaus
 
 ## Remaining gate
 
-Run the combined suite and real renderer replay against Pressroom local `b5ce8d9...`, then verify adapter contract compatibility and a temp-DB/private-staging smoke. If that gate passes, fast-forward main; real PUB/APR/JOB with returned synthetic ART refs remains a separate rehearsal step.
+Run the combined suite and real renderer replay against Pressroom local `b5ce8d9...`, then verify adapter contract compatibility, including the minimal unpublish dispatch/status path and a temp-DB/private-staging smoke. If that gate passes, fast-forward main; real PUB/APR/JOB with returned synthetic ART refs remains a separate rehearsal step.
