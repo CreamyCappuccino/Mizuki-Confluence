@@ -73,7 +73,7 @@ Every HTML surface carries `noindex, nofollow, noarchive`; no sitemap is generat
 
 Readback verifies route, revision/payload markers, exact prepared article body, internal listings and sitemap absence. `lookup` can recognize a completed filesystem side effect even when a local operation receipt is absent, covering the external-success / ledger-finalization recovery seam.
 
-Withdrawal removes both the body and all listing/search/browse references; the old article route must return 404 in the private HTTP smoke.
+Withdrawal consumes Pressroom's actual minimal unpublish dispatch payload (`operation_kind`, destination ref/URL, published revision UUID), not the original article payload. It removes both the body and all listing/search/browse references; the old article route must return 404 in the private HTTP smoke. The private staging history retains the approved display date so status/unpublish preview and later republish do not invent a new date.
 
 ## Offline verification
 
@@ -83,9 +83,9 @@ New provider tests:
 PYTHONPATH=src:tools python3 -m unittest tests/test_phase1_provider.py -v
 ```
 
-At handoff: 30/30 new tests pass, including real-renderer seam normalization, deterministic payload hashing, internal discovery, no sitemap, same-key idempotency, body tamper readback, revision replacement, recovery lookup and HTTP 200 -> 404 withdrawal.
+At handoff: 32/32 new tests pass, including real-renderer seam normalization, deterministic payload hashing, internal discovery, no sitemap, same-key idempotency, body tamper readback, revision replacement, recovery lookup and HTTP 200 -> 404 withdrawal.
 
-The existing 19 contract tests remain a separate gate, so the combined branch target is 49 tests once exercised from the repository checkout.
+The existing 19 contract tests remain a separate gate, so the combined branch target is 51 tests once exercised from the repository checkout.
 
 ## Before main / before rehearsal
 
