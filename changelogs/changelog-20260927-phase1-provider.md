@@ -16,7 +16,7 @@ Date: 2026-09-27
 ## Verification in ChatGPT workspace
 
 - `python3 -m compileall`: pass
-- new provider suite: **32 tests pass**
+- new provider suite: **35 tests pass**
 - private HTTP smoke: article 200 before withdrawal, 404 after withdrawal; sitemap 404
 - no production DB, destination registry, external transport or real manuscript used
 
