@@ -8,68 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .provider_core import ConfluenceProviderCore, PublicAuthor, ResolvedArticle
+from .canonical_reader import _CanonicalReader
+from .dispatch_validation import (
+    check_resolved_identity, checked_payload, publish_revision_ref, withdrawal_manuscript_ref,
+)
+from .provider_core import ConfluenceProviderCore
 from .staging import PrivateStagingStore
-
-
-class _CanonicalReader:
-    def __init__(self, session_factory) -> None:
-        from pressroom.persistence import ManuscriptRepositoryProfile
-
-        self._session_factory = session_factory
-        self._profile = ManuscriptRepositoryProfile(destination_key="confluence")
-
-    def get(self, ref: str, *, mode: str = "current") -> ResolvedArticle:
-        from pressroom.persistence import (
-            ManuscriptClassificationRepository,
-            ManuscriptRepository,
-            session_scope,
-        )
-        from pressroom.services.manuscript_projection import manuscript_snapshot
-
-        with session_scope(self._session_factory) as session:
-            record = ManuscriptRepository(session, profile=self._profile).get(ref, mode=mode)
-            classification = ManuscriptClassificationRepository(
-                session, profile=self._profile
-            ).load(
-                revision_id=record.revision.id,
-                manuscript_id=record.manuscript.id,
-                mode=mode,
-            )
-            snapshot = manuscript_snapshot(
-                record,
-                profile=self._profile,
-                classification=classification,
-            )
-            authors = tuple(
-                PublicAuthor(
-                    author_ref=value.author_ref,
-                    persona_name=value.persona_name,
-                    harness=value.harness,
-                    model=value.model,
-                    role=value.role,
-                    provenance_source=value.provenance_source,
-                )
-                for value in snapshot.authors
-            )
-            return ResolvedArticle(
-                manuscript_id=record.manuscript.id,
-                revision_id=record.revision.id,
-                manuscript_ref=snapshot.manuscript_ref,
-                revision_ref=snapshot.revision_ref,
-                revision_no=snapshot.revision_no,
-                edition_ref=snapshot.edition_ref,
-                locale=snapshot.locale,
-                title=snapshot.title,
-                excerpt=snapshot.excerpt,
-                author_label=snapshot.author_label,
-                authors=authors,
-                category_paths=snapshot.category_paths,
-                tags=snapshot.tags,
-                content_updated_at=snapshot.content_updated_at,
-                rendered_html=snapshot.rendered_html,
-                renderer_version=snapshot.renderer_version,
-            )
 
 
 class ConfluenceDestinationAdapter:
@@ -86,6 +30,7 @@ class ConfluenceDestinationAdapter:
     ) -> None:
         from pressroom.destinations import DestinationCapabilities
 
+        self._site_base_url = site_base_url
         self.public_config = {
             "site_base_url": site_base_url,
             "external_discovery": "discouraged",
@@ -147,16 +92,13 @@ class ConfluenceDestinationAdapter:
     def publish_dispatch(self, dispatch, *, expected_revision: int):
         from pressroom.destinations import PublicationResult
 
-        payload = dict(dispatch.payload_snapshot)
-        selected = self._reader.get(str(payload["revision_ref"]))
+        payload = checked_payload(dispatch, action="publish")
+        selected = self._reader.get(publish_revision_ref(payload))
+        check_resolved_identity(dispatch, selected, payload, site_base_url=self._site_base_url)
         current = self._reader.get(selected.manuscript_ref)
-        if selected.manuscript_id != dispatch.manuscript_id:
-            raise ValueError("publication manuscript identity changed")
-        if selected.revision_id != dispatch.revision_id:
-            raise ValueError("publication revision identity changed")
         if current.revision_id != dispatch.revision_id:
             raise ValueError("manuscript changed after publication preview")
-        if selected.revision_no != expected_revision:
+        if type(expected_revision) is not int or selected.revision_no != expected_revision:
             raise ValueError("revision_ref and expected_revision mismatch")
         receipt = self._staging.publish(payload, idempotency_key=dispatch.idempotency_key)
         return PublicationResult(
@@ -181,7 +123,9 @@ class ConfluenceDestinationAdapter:
     def unpublish_dispatch(self, dispatch):
         from pressroom.destinations import PublicationResult
 
-        payload = dict(dispatch.payload_snapshot)
+        payload = checked_payload(dispatch, action="unpublish")
+        selected = self._withdrawal_revision(payload)
+        check_resolved_identity(dispatch, selected, payload, site_base_url=self._site_base_url)
         receipt = self._staging.unpublish(payload, idempotency_key=dispatch.idempotency_key)
         return PublicationResult(
             action="unpublish",
@@ -211,7 +155,20 @@ class ConfluenceDestinationAdapter:
     def lookup_dispatch(self, dispatch):
         from pressroom.destinations import PublicationLookup
 
-        result = self._staging.lookup(dispatch.action, dict(dispatch.payload_snapshot))
+        try:
+            payload = checked_payload(dispatch)
+            selected = (self._reader.get(publish_revision_ref(payload))
+                        if dispatch.action == "publish" else self._withdrawal_revision(payload))
+            check_resolved_identity(dispatch, selected, payload, site_base_url=self._site_base_url)
+            self._staging.check_operation_identity(
+                dispatch.action, payload, idempotency_key=dispatch.idempotency_key
+            )
+        except _MissingWithdrawalEvidence:
+            return PublicationLookup(outcome="unknown", error_summary="withdrawal identity evidence unavailable")
+        except ValueError:
+            return PublicationLookup(outcome="failed", error_code="invalid_dispatch",
+                                     error_summary="dispatch identity or approved hash mismatch")
+        result = self._staging.lookup(dispatch.action, payload)
         return PublicationLookup(
             outcome=result.outcome,
             destination_ref=result.destination_ref,
@@ -219,3 +176,19 @@ class ConfluenceDestinationAdapter:
             error_code=result.error_code,
             error_summary=result.error_summary,
         )
+
+    def _withdrawal_revision(self, payload):
+        ref = withdrawal_manuscript_ref(payload)
+        known = self._staging.publication_identity(ref)
+        if known is None or not isinstance(known.get("revision_ref"), str):
+            # Do not infer a removed revision from the current draft. History
+            # is private reconciliation evidence, never a second manuscript DB.
+            raise _MissingWithdrawalEvidence("withdrawal identity evidence unavailable")
+        for field in ("destination_ref", "destination_url"):
+            if payload.get(field) != known.get(field):
+                raise ValueError("unpublish target changed from known publication")
+        return self._reader.get(known["revision_ref"])
+
+
+class _MissingWithdrawalEvidence(RuntimeError):
+    """No exact revision/route evidence; recovery must remain unknown."""
