@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 import hashlib
 import json
 import re
+from .html_policy import POLICY_VERSION, LIBXML_VERSION
 
 
 class ConfluenceError(ValueError):
@@ -70,7 +71,7 @@ class RehearsalConfig:
         return {"site_base_url": self.site_base_url, "site_policy": self.site_policy,
                 "pipeline_key": self.pipeline_key, "timezone": self.timezone,
                 "mode": "local-private-rehearsal", "schema": "confluence.publication.v1",
-                "pressroom_commit": PRESSROOM_COMMIT, "html_policy": "confluence-prose-v1+lxml-6.1.1"}
+                "pressroom_commit": PRESSROOM_COMMIT, "html_policy": POLICY_VERSION, "libxml_version": list(LIBXML_VERSION)}
 
     @property
     def fingerprint(self) -> str:
