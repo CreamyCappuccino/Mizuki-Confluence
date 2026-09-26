@@ -1,0 +1,23 @@
+/* Text remains visible if JS, an observer, or motion preferences change. */
+@media (prefers-reduced-motion: no-preference) {
+  body, .masthead, .menu nav { transition: color .3s ease, background-color .5s ease; }
+  .gateways a .icon:last-child, .browse-item .icon { transition: transform .25s ease; }
+  .gateways a:hover .icon:last-child, .browse-item:hover .icon { transform: translateX(4px); }
+  .entry::before { content: ''; position: absolute; inset: 0 -10px; background: var(--wash); transform: scaleX(0); transform-origin: left; transition: transform .5s cubic-bezier(.2,.6,.2,1); pointer-events: none; }
+  .entry:hover::before, .entry:focus-within::before { transform: scaleX(1); }
+  .entry::after { content: ''; position: absolute; bottom: -1px; left: 0; height: 1px; width: 0; background: var(--accent); transition: width .55s ease; }
+  .entry:hover::after, .entry:focus-within::after { width: 100%; }
+  .entry.is-arriving { animation: arrive .65s cubic-bezier(.2,.6,.2,1) both; }
+  .flow-field { animation: current-drift 38s ease-in-out infinite alternate; }
+  @keyframes arrive { from { opacity: .6; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes current-drift { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .hero-image { transform: none !important; }
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .flow-field { animation: none; }
+  .hero-image { transform: none; }
+}
