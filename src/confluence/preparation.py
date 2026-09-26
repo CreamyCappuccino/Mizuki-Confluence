@@ -11,10 +11,16 @@ METADATA_FIELDS = {"published_on", "visibility"}
 def prepare_payload(resolved: ResolvedManuscript, metadata: dict | None,
                     config: RehearsalConfig, previous: dict | None = None) -> dict:
     """Before PUB only. In particular, ignore all AIL snapshot publication state."""
+    if metadata is not None and not isinstance(metadata, dict):
+        raise ConfluenceError("destination metadata must be an object")
     meta = dict(metadata or {})
     if set(meta) - METADATA_FIELDS or meta.get("visibility", "public") != "public":
         raise ConfluenceError("unsupported destination metadata/visibility")
     snapshot = resolved.snapshot
+    if previous is not None:
+        validate_payload(previous, site_base_url=config.site_base_url)
+        if previous["manuscript_ref"] != snapshot.manuscript_ref:
+            raise ConfluenceError("prior publication belongs to another manuscript")
     day = meta.get("published_on")
     if day is None and previous is not None:
         day = previous["published_on"]
