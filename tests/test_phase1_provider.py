@@ -60,6 +60,16 @@ def payload(raw_html=RAW, *, revision_no=1):
     )
 
 
+def unpublish_payload(value=None):
+    source = value or payload()
+    return {
+        "operation_kind": "unpublish",
+        "destination_ref": source["destination_ref"],
+        "destination_url": source["destination_url"],
+        "published_revision_id": "00000000-0000-0000-0000-000000000002",
+    }
+
+
 class HTMLPreparationTests(unittest.TestCase):
     def test_raw_renderer_output_is_not_already_confluence_prepared(self):
         with self.assertRaises(ContractError):
@@ -244,17 +254,23 @@ class StagingTests(unittest.TestCase):
 
     def test_unpublish_removes_body_and_all_listing_surfaces(self):
         self.store.publish(self.payload, idempotency_key="job-1")
-        self.store.unpublish(self.payload, idempotency_key="job-2")
+        self.store.unpublish(unpublish_payload(self.payload), idempotency_key="job-2")
         self.assertFalse((self.root/"site/ja/articles/art99990001.html").exists())
         self.assertNotIn("ART99990001", (self.root/"site/index.html").read_text(encoding="utf-8"))
         self.assertNotIn("ART99990001", (self.root/"site/search.json").read_text(encoding="utf-8"))
-        self.assertEqual(self.store.lookup("unpublish", self.payload).outcome, "succeeded")
+        self.assertEqual(self.store.lookup("unpublish", unpublish_payload(self.payload)).outcome, "succeeded")
 
     def test_unpublish_same_key_same_payload_is_idempotent(self):
         self.store.publish(self.payload, idempotency_key="job-1")
-        first = self.store.unpublish(self.payload, idempotency_key="job-2")
-        second = self.store.unpublish(self.payload, idempotency_key="job-2")
+        first = self.store.unpublish(unpublish_payload(self.payload), idempotency_key="job-2")
+        second = self.store.unpublish(unpublish_payload(self.payload), idempotency_key="job-2")
         self.assertEqual(first, second)
+
+    def test_display_date_history_survives_withdrawal(self):
+        self.store.publish(self.payload, idempotency_key="job-1")
+        self.store.unpublish(unpublish_payload(self.payload), idempotency_key="job-2")
+        self.assertEqual(self.store.published_on("ART99990001"), "2026-09-26")
+        self.assertIsNone(self.store.published_payload("ART99990001"))
 
     def test_revision_replaces_same_route_without_duplicate_entry(self):
         self.store.publish(self.payload, idempotency_key="job-1")
@@ -264,6 +280,14 @@ class StagingTests(unittest.TestCase):
         self.assertEqual(index.count('data-manuscript-ref="ART99990001"'), 1)
         article = (self.root/"site/ja/articles/art99990001.html").read_text(encoding="utf-8")
         self.assertIn('data-revision-ref="ART99990001-R02"', article)
+
+    def test_unpublish_requires_pressroom_operation_payload_shape(self):
+        self.store.publish(self.payload, idempotency_key="job-1")
+        with self.assertRaises(ValueError):
+            self.store.unpublish(self.payload, idempotency_key="job-2")
+        bad = dict(unpublish_payload(self.payload), destination_ref="confluence:ART99990002")
+        with self.assertRaises(ValueError):
+            self.store.unpublish(bad, idempotency_key="job-3")
 
     def test_http_readback_200_then_404_after_unpublish(self):
         self.store.publish(self.payload, idempotency_key="job-1")
@@ -278,7 +302,7 @@ class StagingTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as missing_sitemap:
                 urllib.request.urlopen(base + "/sitemap.xml")
             self.assertEqual(missing_sitemap.exception.code, 404)
-            self.store.unpublish(self.payload, idempotency_key="job-2")
+            self.store.unpublish(unpublish_payload(self.payload), idempotency_key="job-2")
             with self.assertRaises(urllib.error.HTTPError) as missing_article:
                 urllib.request.urlopen(base + "/ja/articles/art99990001.html")
             self.assertEqual(missing_article.exception.code, 404)
