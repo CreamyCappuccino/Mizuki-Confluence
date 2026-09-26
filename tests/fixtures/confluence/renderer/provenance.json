@@ -1,0 +1,41 @@
+{
+  "schema_version": "confluence.renderer-fixture.v1",
+  "synthetic_only": true,
+  "stage": "raw_pressroom_renderer_not_prepared_payload",
+  "renderer_version": "md-converter/0.1.0+markdown-it-py/4.2.0+nh3/0.3.6+pyyaml/6.0.3",
+  "python_version": "3.14.7",
+  "dependencies": {
+    "pressroom": "0.1.0",
+    "md-converter": "0.1.0",
+    "markdown-it-py": "4.2.0",
+    "nh3": "0.3.6",
+    "pyyaml": "6.0.3"
+  },
+  "pressroom": {
+    "repository": "CreamyCappuccino/CodexMizuki-Pressroom",
+    "commit": "b5ce8d9422f0b90377145471bcb96f870e3e9263",
+    "rendering_tree_git_sha1": "65024f84f5ba055c8dd0e3ca4afedf183adea685",
+    "uv_lock_sha256": "d49cc2eadfbfb9987481af5400dfa8271cf9770e9cf290cb99f1e9f5b41126ae",
+    "renderer_source_sha256": "80ec6afbce4a03e6778b05b1d958157cfbee03f080cfb307633a77ca4c6bfb41"
+  },
+  "md_converter": {
+    "commit": "0d98198dd2da1abf82e4cf17c1bf8658027f021c",
+    "package_tree_git_sha1": "0c837bc18925f20b5a31e21961c342c227d55a92",
+    "source_sha256": {
+      "src/md_converter/__init__.py": "982a23220adac51325815dfbb163e868cda660c1b24056a44898947c699a891f",
+      "src/md_converter/document.py": "a02cdc43360a86d2676dee7644aeb602a53679567dbbfe1f5a6be5ed0558acb0",
+      "src/md_converter/frontmatter.py": "a568e4bd7bdba526df42a885a4c3a298af76ab07ced95410a0894e704de60552",
+      "src/md_converter/policy.py": "09b51043143b0c8e1516f60476dd5adb2a080bd453d4a4f3ae1db56b66bebf38",
+      "src/md_converter/renderer.py": "be7720f4cd50ab4ff2c2456f241166f73fcf864f207ee98ac5b736e295562511",
+      "src/md_converter/themes.py": "7eccf4c0a07f64c1950dffab686335259ee558e95aabb6383ecb4dcbddb87b02"
+    }
+  },
+  "input_sha256": "424f1adf86f3e046ba21b608336ad9bb0bf674be2f05afdf1c9bb1b85b66d0dd",
+  "output_sha256": "e72825edcb09a86c001c8861f755901b64886c28da9e353912582a7254ea87d7",
+  "notes": [
+    "No DB, manuscript lookup, PUB/APR/JOB, network delivery or provider normalization was run.",
+    "Raw renderer emits no heading ids, so local fragment links are unresolved until provider pre-PUB normalization.",
+    "Renderer adds rel=\"noopener noreferrer\"; provider must validate/normalize to its own allowlist before freeze/hash.",
+    "Local editable dependencies are checkout identities, not deployed runtime proof; pin both source commits and resolved dependency versions."
+  ]
+}
