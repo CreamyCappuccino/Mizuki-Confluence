@@ -47,9 +47,22 @@ def payload_sha256(payload: dict[str, object]) -> str:
 
 def _route(site_base_url: str, locale: str, manuscript_ref: str) -> str:
     parsed = urlsplit(site_base_url)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.query or parsed.fragment:
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or "%" in parsed.path
+        or "\\" in parsed.path
+    ):
         raise ValueError("site_base_url must be a normalized HTTPS origin/base")
-    return f'{site_base_url.rstrip("/")}/{locale}/articles/{manuscript_ref.lower()}.html'
+    segments = [part for part in parsed.path.split("/") if part]
+    if any(part in {".", ".."} for part in segments):
+        raise ValueError("site_base_url path traversal is not allowed")
+    base = site_base_url.rstrip("/")
+    return f'{base}/{locale}/articles/{manuscript_ref.lower()}.html'
 
 
 def build_publication_payload(
