@@ -138,6 +138,38 @@ class DependencyAndPayloadTests(unittest.TestCase):
         self.assertEqual(value["destination_ref"], "confluence:ART99990001")
         self.assertEqual(value["destination_url"], "https://confluence.invalid/ja/articles/art99990001.html")
 
+    def test_route_preserves_safe_configured_base_path(self):
+        value = build_publication_payload(
+            article(),
+            site_base_url="https://confluence.invalid/private-room",
+            published_on=date(2026, 9, 26),
+        )
+        self.assertEqual(
+            value["destination_url"],
+            "https://confluence.invalid/private-room/ja/articles/art99990001.html",
+        )
+        with tempfile.TemporaryDirectory() as d:
+            store = PrivateStagingStore(Path(d) / "staging")
+            store.publish(value, idempotency_key="base-path")
+            self.assertTrue(
+                (Path(d) / "staging/site/private-room/ja/articles/art99990001.html").exists()
+            )
+            self.assertIn(
+                "private-room/ja/articles/art99990001.html",
+                (Path(d) / "staging/site/index.html").read_text(encoding="utf-8"),
+            )
+
+    def test_route_rejects_ambiguous_base_paths(self):
+        for base in (
+            "https://confluence.invalid/%2e%2e/private",
+            "https://confluence.invalid/a/../private",
+            "https://user:pass@confluence.invalid/private",
+        ):
+            with self.subTest(base=base), self.assertRaises(ValueError):
+                build_publication_payload(
+                    article(), site_base_url=base, published_on=date(2026, 9, 26)
+                )
+
     def test_phase1_visibility_is_public_inside_confluence(self):
         self.assertEqual(payload()["visibility"], "public")
         with self.assertRaises(ValueError):
@@ -227,6 +259,11 @@ class StagingTests(unittest.TestCase):
         self.store.publish(self.payload, idempotency_key="job-1")
         self.assertEqual(self.store.lookup("publish", self.payload).outcome, "succeeded")
         (self.root/"site/index.html").write_text("broken", encoding="utf-8")
+        self.assertEqual(self.store.lookup("publish", self.payload).error_code, "listing_missing")
+
+    def test_publish_lookup_requires_search_listing_too(self):
+        self.store.publish(self.payload, idempotency_key="job-1")
+        (self.root / "site/search.json").write_text("[]\n", encoding="utf-8")
         self.assertEqual(self.store.lookup("publish", self.payload).error_code, "listing_missing")
 
     def test_tampered_article_body_fails_readback(self):
