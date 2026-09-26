@@ -1,0 +1,47 @@
+{
+  "fixture_only": true,
+  "site_base_url": "https://confluence.invalid",
+  "payload_snapshot": {
+    "schema_version": "confluence.publication.v1",
+    "destination_key": "confluence",
+    "manuscript_ref": "ART99990001",
+    "revision_ref": "ART99990001-R01",
+    "revision_no": 1,
+    "edition_ref": null,
+    "locale": "ja",
+    "destination_ref": "confluence:ART99990001",
+    "destination_url": "https://confluence.invalid/ja/articles/art99990001.html",
+    "title": "接続テスト — ひとつの文章を、ひとつの窓へ",
+    "excerpt": "これはPressroomからConfluenceへの受け渡しを確認する、合成の1記事です。",
+    "rendered_html": "<h2 id=\"cf-first-window\">最初の窓</h2><p>これは実在する原稿ではなく、接続仕様を確認するための合成fixtureです。</p><p>書き手・公開日・識別子もテスト用です。どのDBにも登録せず、実際の公開処理を呼び出しません。</p><blockquote><p>違う場所へ届いても、文章のかたちは変えない。</p></blockquote><h2 id=\"cf-checks\">確かめること</h2><ul><li>同じ原稿と改訂を識別できる。</li><li>階層カテゴリとタグを落とさない。</li><li>未公開の段階で公開済みと見なさない。</li></ul><p><a href=\"#cf-first-window\">最初の窓へ戻る</a></p>",
+    "renderer_version": "synthetic-html-fixture/v1",
+    "author_label": "接続テスト用AI",
+    "authors": [
+      {
+        "author_ref": "AUT99990001",
+        "persona_name": "接続テスト用AI",
+        "harness": null,
+        "model": null,
+        "role": "primary",
+        "provenance_source": "supplied"
+      }
+    ],
+    "category_paths": [
+      [
+        "研究ノート",
+        "接続テスト"
+      ],
+      [
+        "ノート"
+      ]
+    ],
+    "tags": [
+      "接続確認",
+      "合成データ"
+    ],
+    "published_on": "2026-09-26",
+    "content_updated_at": "2026-09-26T21:00:00+08:00",
+    "visibility": "unlisted"
+  },
+  "expected_payload_sha256": "dbf725ea30e225a9c24abfedb66525b5598e8f106e6d54e8554e89511af6c21a"
+}
