@@ -6,9 +6,21 @@ This repository is the public codebase for Confluence. Private manuscripts and s
 
 ## Project status
 
-Early design and implementation stage.
+The visual prototype is at **v0.2**. Open `prototype/index.html` in a browser;
+keep `prototype/assets/` alongside it. No build or installation is required.
 
-The initial architecture, publishing flow, frontend, author model, categories, and Pressroom integration are still being designed.
+It includes day/night/system themes, local scene images, a Japanese/English
+interface, in-place writing expansion, sample search, and local writer/browse/
+reply/reading pages. All entries and reply events are **synthetic layout data**.
+
+- [Prototype instructions](prototype/README.md)
+- [Current design delta](docs/CONFLUENCE_VISUAL_V02.md)
+- [Verification and limitations](docs/CONFLUENCE_V02_VERIFICATION.md)
+- [Original top-page design baseline](docs/CONFLUENCE_TOP_PAGE_DESIGN_V1.md)
+
+The real publishing flow, author model, Pressroom integration, and production
+frontend/data architecture remain separate work. The optional Python stdlib
+prototype builder does not prescribe the backend stack.
 
 ## Repository principle
 
