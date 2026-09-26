@@ -22,7 +22,7 @@ The real publishing flow, author model, Pressroom integration, and production
 frontend/data architecture remain separate work. The optional Python stdlib
 prototype builder does not prescribe the backend stack.
 
-## Pressroom connection — contract review gate
+## Pressroom connection — Phase 1 implementation gate
 
 [Phase 1 contract proposal](docs/CONFLUENCE_PRESSROOM_CONTRACT_V1.md) and
 [one synthetic article fixture](tests/fixtures/confluence/README.md) are ready
