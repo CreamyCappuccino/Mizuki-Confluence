@@ -10,6 +10,7 @@ import re
 import tempfile
 
 from .payload import payload_sha256
+from .staging_readback import article_matches, mismatched_surfaces
 from .static_pages import ROBOTS, render_article, render_browse, render_index, render_search, route_path
 
 ART = re.compile(r"ART[0-9]{4,}\Z")
@@ -60,6 +61,7 @@ class PrivateStagingStore:
         ref = str(payload["manuscript_ref"])
         state["articles"][ref] = payload
         state["history"][ref] = {
+            "revision_ref": payload["revision_ref"],
             "published_on": payload["published_on"],
             "destination_ref": payload["destination_ref"],
             "destination_url": payload["destination_url"],
@@ -96,36 +98,58 @@ class PrivateStagingStore:
         return receipt
 
     def lookup(self, action: str, payload: dict[str, object]) -> StageLookup:
+        try:
+            return self._lookup(action, payload)
+        except OSError:
+            return StageLookup("unknown", error_code="readback_unavailable",
+                               error_summary="staging readback could not be read")
+
+    def _lookup(self, action: str, payload: dict[str, object]) -> StageLookup:
+        state = self._load_state()
+        articles = state["articles"]
         if action == "unpublish":
             ref = self._validate_unpublish_payload(payload)
             article = self._article_path_from_url(str(payload["destination_url"]), ref)
-            if not article.exists() and not self._listed_ref(ref):
-                return StageLookup("succeeded", str(payload["destination_ref"]), str(payload["destination_url"]))
-            return StageLookup("failed", error_code="artifact_or_listing_still_exists", error_summary="withdrawn article remains readable or listed")
+            if (ref in articles or article.exists()
+                    or mismatched_surfaces(self.site, articles)):
+                return StageLookup("failed", error_code="artifact_or_listing_still_exists",
+                                   error_summary="withdrawal body or individual surfaces differ")
+            if (self.site / "sitemap.xml").exists():
+                return StageLookup("failed", error_code="sitemap_present",
+                                   error_summary="sitemap must not be generated")
+            return StageLookup("succeeded", str(payload["destination_ref"]), str(payload["destination_url"]))
         if action != "publish":
             raise ValueError("unsupported staging lookup action")
 
         self._validate_publish_payload(payload)
         article = self._article_path(payload)
-        ref = str(payload["destination_ref"])
-        url = str(payload["destination_url"])
+        ref = str(payload["manuscript_ref"])
         if not article.exists():
             return StageLookup("failed", error_code="artifact_missing", error_summary="article missing")
-        text = article.read_text(encoding="utf-8")
-        digest = payload_sha256(payload)
-        markers = (
-            f'data-manuscript-ref="{payload["manuscript_ref"]}"',
-            f'data-revision-ref="{payload["revision_ref"]}"',
-            f'data-payload-sha256="{digest}"',
-            f'<meta name="robots" content="{ROBOTS}">',
-        )
-        if not all(marker in text for marker in markers) or str(payload["rendered_html"]) not in text:
-            return StageLookup("failed", error_code="artifact_mismatch", error_summary="article markers/body differ")
-        if not self._listed(payload):
-            return StageLookup("failed", error_code="listing_missing", error_summary="published article is not listed")
+        if not article_matches(article, payload):
+            return StageLookup("failed", error_code="artifact_mismatch",
+                               error_summary="complete article artifact differs from approved candidate")
+        stored = articles.get(ref)
+        if (not isinstance(stored, dict) or payload_sha256(stored) != payload_sha256(payload)
+                or mismatched_surfaces(self.site, articles)):
+            return StageLookup("failed", error_code="listing_missing",
+                               error_summary="published projection or individual discovery surfaces differ")
         if (self.site / "sitemap.xml").exists():
             return StageLookup("failed", error_code="sitemap_present", error_summary="sitemap must not be generated")
-        return StageLookup("succeeded", ref, url)
+        return StageLookup("succeeded", str(payload["destination_ref"]), str(payload["destination_url"]))
+
+    def publication_identity(self, manuscript_ref: str) -> dict[str, object] | None:
+        state = self._load_state()
+        value = state["articles"].get(manuscript_ref) or state["history"].get(manuscript_ref)
+        if not isinstance(value, dict):
+            return None
+        return {field: value.get(field) for field in
+                ("revision_ref", "destination_ref", "destination_url")}
+
+    def check_operation_identity(self, action: str, payload: dict[str, object], *, idempotency_key: str) -> None:
+        prior = self._read_operation(idempotency_key)
+        if prior is not None:
+            self._assert_same_operation(prior, action, payload_sha256(payload))
 
     def published_payload(self, manuscript_ref: str) -> dict[str, object] | None:
         value = self._load_state()["articles"].get(manuscript_ref)
@@ -168,32 +192,6 @@ class PrivateStagingStore:
         self._write_text(self.site / "search.json", render_search(articles))
         (self.site / "sitemap.xml").unlink(missing_ok=True)
         self._write_json(self.state_file, state)
-
-    def _listed(self, payload: dict[str, object]) -> bool:
-        ref = str(payload["manuscript_ref"])
-        if not self._listed_ref(ref):
-            return False
-        browse = self.site / "browse.html"
-        if not browse.exists():
-            return False
-        text = browse.read_text(encoding="utf-8")
-        return all(" › ".join(path) in text for path in payload["category_paths"]) and all(f"#{tag}" in text for tag in payload["tags"])
-
-    def _listed_ref(self, manuscript_ref: str) -> bool:
-        index, search = self.site / "index.html", self.site / "search.json"
-        if not (index.exists() and search.exists()):
-            return False
-        marker = f'data-manuscript-ref="{manuscript_ref}"'
-        if marker not in index.read_text(encoding="utf-8"):
-            return False
-        try:
-            items = json.loads(search.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return False
-        return isinstance(items, list) and any(
-            isinstance(item, dict) and item.get("manuscript_ref") == manuscript_ref
-            for item in items
-        )
 
     def _article_path(self, payload: dict[str, object]) -> Path:
         ref = str(payload["manuscript_ref"])
