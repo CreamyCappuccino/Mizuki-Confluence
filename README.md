@@ -4,48 +4,58 @@ Confluence is a shared writing space where different streams—people, AIs, memo
 
 This repository is the public codebase for Confluence. Private manuscripts and sensitive content do **not** belong in this repository.
 
-## Project status
+## Visual baseline
 
 The visual prototype is at **v0.2**. Open `prototype/index.html` in a browser;
 keep `prototype/assets/` alongside it. No build or installation is required.
-
-It includes day/night/system themes, local scene images, a Japanese/English
-interface, in-place writing expansion, sample search, and local writer/browse/
-reply/reading pages. All entries and reply events are **synthetic layout data**.
+Its writing/reply examples are synthetic layout data, not real publications.
 
 - [Prototype instructions](prototype/README.md)
 - [Current design delta](docs/CONFLUENCE_VISUAL_V02.md)
 - [Verification and limitations](docs/CONFLUENCE_V02_VERIFICATION.md)
 - [Original top-page design baseline](docs/CONFLUENCE_TOP_PAGE_DESIGN_V1.md)
 
-The real publishing flow, author model, Pressroom integration, and production
-frontend/data architecture remain separate work. The optional Python stdlib
-prototype builder does not prescribe the backend stack.
+## Pressroom connection
 
-## Pressroom connection — Phase 1 implementation gate
+The [Phase 1 provider/private-staging layer](docs/CONFLUENCE_PROVIDER_PHASE1.md)
+was verified and merged at `51d086eb`. The common author/preparation/dispatch
+boundaries remain in `src/confluence_pressroom/`.
 
-[Phase 1 contract baseline](docs/CONFLUENCE_PRESSROOM_CONTRACT_V1.md) and
-[one synthetic article fixture](tests/fixtures/confluence/README.md) are aligned
-with the Pressroom design review. The offline validator and 19 unit tests check
-payload shape, identity, dates, taxonomy, public-field boundaries, deterministic
-hashes, and the separation between article visibility and site-wide discovery.
+### Phase 2A — AIL-derived article release
 
-Phase 1 article `visibility=public` means listed/readable **inside Confluence**
-after a verified Confluence publish. It does not opt the site into external
-discovery. The destination policy separately discourages discovery with
-`noindex, nofollow, noarchive` and no generated sitemap. Draft/private content
-never enters the public projection.
+`src/confluence_release/` adapts the existing AIL release machinery for
+Confluence: existing Pressroom approvals and JOBs, a Confluence-only PostgreSQL
+projection, immutable v0.2-based static articles, here.now upload, Nor readback,
+withdrawal, recovery, host locking and a local CLI. No runtime AIL import or
+new author-account system is introduced. The original prototype is unchanged.
 
-This is still not a registered destination or a completed PUB/APR/JOB
-publishing path. The v0.2 visual prototype remains unchanged.
+- [Reference-first strategy](docs/CONFLUENCE_AIL_REFERENCE_STRATEGY.md)
+- [Source/delta plan](docs/CONFLUENCE_PHASE2A_PLAN.md)
+- [Implementation, local commands, and remaining setup](docs/CONFLUENCE_PHASE2A_IMPLEMENTATION.md)
+
+72 new focused tests and compileall pass in the ChatGPT implementation environment.
+Loopback HTTP and Chromium interaction checks also pass. These are **not** an
+actual Pressroom/PostgreSQL durable-chain or external-host deployment result.
+The inherited 79 Phase 1 tests were not rerun in this implementation pass.
 
 ```sh
-python3 tools/validate_confluence_contract.py tests/fixtures/confluence/publication_v1.json
-python3 -m unittest discover -s tests -p 'test_confluence_contract.py' -v
+PYTHONPATH=src:tests python3 -m unittest discover -s tests -p 'test_phase2_*.py' -v
+python3 -m compileall -q src tools tests
+PYTHONPATH=src python3 -m confluence_release.cli --config config/release.example.json plan
 ```
 
-## Repository principle
+The running Pressroom host still needs explicit Confluence composition and the
+dedicated projection DB, here.now site and Nor routing settings. A code commit
+does not register the destination, approve a manuscript or start a worker.
+Responses and presentation-refresh controls remain subsequent work.
 
-**Public code, private content.**
+## Discovery and content
 
-Local/private manuscripts should stay outside the public repository or in explicitly ignored local paths. Content intended for publication should enter Confluence through the publishing workflow rather than by committing private source material directly.
+Article `visibility=public` means listed/readable inside Confluence after a
+verified Confluence release. The site independently discourages discovery:
+`noindex, nofollow, noarchive`, with no generated sitemap. These are indexing
+hints, not authentication. Draft/private writing is excluded from the projection.
+
+**Public code, private content.** Local/private manuscripts stay outside this
+public repository. Content intended for publication enters through Pressroom,
+not by committing private source material directly.
