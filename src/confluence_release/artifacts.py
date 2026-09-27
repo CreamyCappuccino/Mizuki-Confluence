@@ -3,9 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import shutil
 import tempfile
+
+from confluence_pressroom.release_checksums import (
+    MANIFEST, safe_relative_path, verify_local_artifact as verify_safety_artifact,
+)
 
 from .config import ReleaseConfig, json_bytes
 from .projection import ProjectionArticle, projection_digest
@@ -17,12 +21,7 @@ def sha256(data: bytes) -> str:
 
 
 def safe_relative(value: str) -> str:
-    path = PurePosixPath(value)
-    if (not value or path.is_absolute() or '\\' in value or '%' in value
-            or any(x in {'', '.', '..'} for x in value.split('/'))
-            or any(ord(x) < 32 for x in value)):
-        raise ValueError('invalid artifact relative path')
-    return path.as_posix()
+    return safe_relative_path(value)
 
 
 def read_files(root: Path) -> dict[str, bytes]:
@@ -56,6 +55,9 @@ class BuildReceipt:
 
 
 def verify_local_artifact(receipt: BuildReceipt) -> None:
+    # The pin is from the private JOB receipt, never recomputed from the artifact.
+    verify_safety_artifact(receipt.output,
+                           expected_manifest_sha256=receipt.checksums.get(MANIFEST))
     actual = {p: sha256(v) for p, v in read_files(receipt.output).items()}
     # Include inventory: appended files / routes cannot be silently uploaded.
     if actual != receipt.checksums:
