@@ -40,6 +40,8 @@ class PublicationBridge:
             builder=self.builder, client=self.client, release_root=self.root, runtime_guard=self.runtime_guard,
             readback=self.readback)
         delivery.prepare(allow_build=not reconcile)
+        if self.runtime_guard is not None:
+            self.runtime_guard.assert_current()
         adapter = HereNowDestinationAdapter(self.factory, self.config, delivery=delivery)
         workflow = PublicationWorkflow(self.factory, (adapter,))
         expected = 'published' if context.job_action == 'publish' else 'unpublished'
