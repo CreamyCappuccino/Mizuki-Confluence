@@ -1,6 +1,6 @@
 # Phase 2A + release safety integration
 
-2026-09-27. Owner: Mizuki / ChatGPT. Status: integration in progress, not merge/deployment approval.
+2026-09-27. Owner: Mizuki / ChatGPT. Status: safety wiring implemented; complete-checkout tests pass locally; final exact-SHA real-Pressroom review pending.
 
 ## Parents and evidence
 
@@ -21,3 +21,80 @@ Check runtime before projection/build, external effects, readback, return to can
 Run full combined discovery (expected baseline 161 + 43 = 204; confirm actual count) plus new wiring regressions. Run stored fixture integrity and compileall. A final exact SHA still needs the pinned Pressroom real renderer, host writer-profile preservation and fresh isolated PG owner probe. The probe must exercise the integrated safety path, not replacement fake safety functions. Hosting alone remains in-memory.
 
 Main, production, dedicated hosting configuration, AIL and Pressroom sources are unchanged. No live credentials are read and no deployment is attempted. Dedicated here.now/Nor/projection setup remains UNKNOWN.
+
+## Wiring actually implemented
+
+- `confluence_release.release_lock` and `runtime_guard` re-export the same
+  implementations/classes as the safety package. The shared runtime input list
+  covers both source packages, prototype, tools and dependency files.
+- `ReleaseJobStore.site_lock` already spans worker claim, canonical workflow,
+  recovery and JOB completion. It now reaches the shared lock. The generic
+  `run_guarded_release` helper remains usable by synchronous callers but is NOT
+  nested around the JOB worker, avoiding double-acquisition and a parallel
+  approval/retry implementation.
+- `artifacts.verify_local_artifact` keeps exact private receipt inventory and
+  adds the safety manifest/discovery checks. The trusted pin is the existing
+  `BuildReceipt.checksums['checksums.sha256']`, preserved in private JOB receipts.
+  No new approval object, manifest re-sealing, or public-JSON authority is added.
+- `confluence_release.readback` bridges that same receipt to
+  `confluence_pressroom.public_release_readback`. Default GETs use the existing
+  bounded no-redirect transport. Explicit urllib-shaped test openers are adapted
+  to the bounded response API; normal runtime cannot fall back to bare urlopen.
+  HTTP is accepted only via explicit loopback test opt-in. Two distinct bases
+  are mandatory. Unknown-route, removed-route and sitemap absence are checked
+  on BOTH bases. The host-owned robots exception remains disabled here.
+- Guard checks cover preparation, projection/build, possible external mutation,
+  readback, return to canonical workflow/recovery finalization, and JOB completion.
+  A post-delivery stale runtime cannot complete the JOB. Existing unknown/reconcile
+  handling retains the exact artifact and never repairs by re-uploading.
+- The existing owner PG probe now captures the shared real Git runtime guard,
+  passes it to bridge AND worker, and records that source commit in its build.
+  It still uses the supplied isolated PG and only in-memory hosting. The probe
+  does not call production or create/drop the caller's DB.
+
+## Verification at this integration checkpoint
+
+The branch's initial union plus alias commit `2b553dac` passed 204 tests in
+GitHub Actions run `36309095355`. Its exact public source archive was used to
+create the full ChatGPT working copy, rather than reconstructing partial files.
+The archive ZIP matched its reported SHA-256 before extraction.
+
+After wiring, the full source tree passed **230 tests** on Python 3.13.5:
+204 inherited cases + 26 new wiring regressions in
+`test_integrated_readback.py` and `test_integrated_runtime.py`.
+`compileall` and stored renderer byte integrity also passed. Real temporary Git
+repositories, shared flock and loopback HTTP are exercised. Hosting/JOB ports
+in focused tests are explicit doubles; this is NOT a new real-Pressroom/PG or
+external-deployment result.
+
+Existing test adaptations are limited to the stricter seams: bounded `.read(size)`
+on the explicit HTTP double; two independent loopback mounts with explicit HTTP
+opt-in; and inducing a runtime change AFTER preparation in the old upload guard
+case (preparation itself is now guarded). No old test is removed or skipped.
+
+```sh
+PYTHONPATH=src:tests PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py' -v
+python3 -m compileall -q src tools tests
+python3 tests/fixtures/confluence/renderer/verify_fixture.py
+```
+
+A branch-scoped GitHub Actions workflow repeats the complete offline checks and
+stores source/test evidence. It uses no repository write permissions, credentials,
+production services or deployment commands. No automatic main/release trigger
+is enabled by that workflow.
+
+## Final review and remaining boundary
+
+Review the final commit of this integration branch, not either parent. Run the
+230 tests plus actual renderer replay in local Pressroom `b5ce8d9`, preserve
+writer_profiles in the test host, and run the owner PG probe UNCHANGED in a
+fresh dedicated empty loopback DB and private temp root. Confirm the integrated
+readback and real guard are reached during PUB -> APR -> JOB -> lost-reply
+reconcile (upload count remains one) -> withdrawal. A Git archive is adequate
+for offline tests but this PG probe's real guard requires an actual clean Git
+checkout. Never disable that guard to make the probe run.
+
+Separate authorizations/setups still remain: dedicated hosting/projection/runtime
+configuration, live here.now/Nor delivery and readback, production registry,
+actual manuscripts, Responses, and presentation-refresh controls. None is
+implied by a source merge or helper/unit-suite PASS.
