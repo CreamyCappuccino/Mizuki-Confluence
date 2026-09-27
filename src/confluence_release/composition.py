@@ -12,13 +12,15 @@ from .authority import CanonicalReleaseReader
 from .delivery import ReleaseDelivery
 from .job_store import ReleaseJobStore
 from .projection import PostgresProjectionStore
+from .readback import verify_public_artifact
 from .worker import ReleaseWorker
 
 
 class PublicationBridge:
-    def __init__(self, factory, config, jobs, projection, builder, client, release_root, runtime_guard):
+    def __init__(self, factory, config, jobs, projection, builder, client, release_root, runtime_guard,
+                 *, readback=verify_public_artifact):
         self.factory, self.config, self.jobs = factory, config, jobs
-        self.runtime_guard = runtime_guard
+        self.runtime_guard, self.readback = runtime_guard, readback
         self.projection, self.builder, self.client, self.root = projection, builder, client, release_root
 
     def may_have_delivered(self, context):
@@ -35,7 +37,8 @@ class PublicationBridge:
         from pressroom.services.publication_recovery import PublicationRecoveryCoordinator
         delivery = ReleaseDelivery(context, config=self.config, jobs=self.jobs,
             authority=CanonicalReleaseReader(self.factory), projection=self.projection,
-            builder=self.builder, client=self.client, release_root=self.root, runtime_guard=self.runtime_guard)
+            builder=self.builder, client=self.client, release_root=self.root, runtime_guard=self.runtime_guard,
+            readback=self.readback)
         delivery.prepare(allow_build=not reconcile)
         adapter = HereNowDestinationAdapter(self.factory, self.config, delivery=delivery)
         workflow = PublicationWorkflow(self.factory, (adapter,))
