@@ -1,0 +1,86 @@
+"""AIL build/deploy/readback steps, bound to an exact approved Confluence JOB."""
+from __future__ import annotations
+from dataclasses import asdict
+from pathlib import Path
+
+from .artifacts import BuildReceipt, verify_local_artifact
+from .projection import projection_digest
+from .readback import verify_public_artifact
+from .release_contract import validate_reconcile_dispatch
+
+
+class ReleaseDelivery:
+    def __init__(self, context, *, config, jobs, authority, projection, builder, client,
+                 release_root: Path, readback=verify_public_artifact, runtime_guard=None):
+        self.context, self.config, self.jobs = context, config, jobs
+        self.runtime_guard = runtime_guard
+        self.authority, self.projection, self.builder = authority, projection, builder
+        self.client, self.root, self.readback = client, release_root, readback
+        if not release_root.is_absolute():
+            raise ValueError('release_root must be absolute')
+        self.receipt = None
+
+    def check_dispatch(self, dispatch):
+        validate_reconcile_dispatch(self.context, dispatch)
+
+    def _record(self, step, value):
+        self.jobs.record(self.context.job_id, step, value)
+
+    def prepare(self, *, allow_build=True):
+        receipts = self.jobs.receipts(self.context.job_id)
+        saved = receipts.get('static_build')
+        if saved:
+            self.receipt = BuildReceipt.from_record(saved)
+            expected = self.root / str(self.context.job_id)
+            if self.receipt.output != expected:
+                raise ValueError('stored artifact is outside its configured JOB directory')
+            verify_local_artifact(self.receipt)
+            return
+        if (not allow_build or 'here_now_started' in receipts
+                or self.context.attempt_status != 'awaiting_confirmation'):
+            raise ValueError('frozen artifact receipt missing; recover evidence, never rebuild an uncertain release')
+        articles = self.authority.desired_articles(self.context)
+        self.projection.replace_all(articles)
+        actual = self.projection.list_published()
+        if projection_digest(actual) != projection_digest(articles):
+            raise ValueError('projection differs from the approved authority snapshot')
+        self._record('projection', {'content_digest': projection_digest(articles), 'articles': len(articles)})
+        self.receipt = self.builder.build(actual, self.root / str(self.context.job_id))
+        self._record('static_build', self.receipt.as_record())
+
+    @property
+    def removed_paths(self):
+        if self.context.job_action != 'unpublish':
+            return ()
+        url = str(self.context.attempt_payload_snapshot['destination_url'])
+        prefix = self.config.site_base + '/'
+        if not url.startswith(prefix):
+            raise ValueError('withdrawn route differs from the configured destination')
+        return (url[len(prefix):],)
+
+    def perform(self, dispatch):
+        self.check_dispatch(dispatch)
+        if self.receipt is None:
+            raise ValueError('immutable artifact was not prepared before ledger claim')
+        verify_local_artifact(self.receipt)
+        if self.runtime_guard is not None:
+            self.runtime_guard.assert_current()
+        self._record('here_now_started', {'slug': self.config.here_now_slug,
+                                         'content_digest': self.receipt.content_digest})
+        receipt = self.client.publish(self.config.here_now_slug, self.receipt)
+        self._record('here_now', asdict(receipt))
+        evidence = self.readback(self.receipt, self.config, removed_paths=self.removed_paths)
+        self._record('public_readback', evidence)
+
+    def lookup(self, dispatch):
+        self.check_dispatch(dispatch)
+        if self.receipt is None:
+            return False
+        verify_local_artifact(self.receipt)
+        receipt = self.client.reconcile(self.config.here_now_slug, self.receipt)
+        if receipt is None:
+            return False
+        evidence = self.readback(self.receipt, self.config, removed_paths=self.removed_paths)
+        self._record('here_now', asdict(receipt))
+        self._record('public_readback', evidence)
+        return True
