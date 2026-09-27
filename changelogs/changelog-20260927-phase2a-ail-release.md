@@ -15,6 +15,8 @@
 - 72 focused new tests + compileall PASS; local HTTP checksum/404 PASS; Chromium
   search/expand/reset interaction PASS. External API calls and canonical JOBs
   are test doubles, not deployment evidence. Inherited 79 tests not rerun here.
+- Added a ChatGPT-authored real-PG PUB/APR/JOB/recovery/withdrawal probe for the
+  pinned local review harness. Compiled here; not executed without that runtime.
 - No production DB, registry, manuscript, here.now or Nor mutation occurred.
 
 Next exact-code compatibility review and actual configured release execution:
