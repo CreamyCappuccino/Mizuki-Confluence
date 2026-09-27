@@ -109,7 +109,8 @@ conflicts, and missing evidence are covered. Existing loopback HTTP 200 -> 404,
 renderer-seam preparation, and date/idempotency regressions remain green.
 
 Stored renderer fixture byte integrity and compileall pass. Actual rerendering
-against the local Pressroom/converter environment must still be run separately.
+against the local Pressroom/converter environment subsequently passed in the
+exact-SHA Phase 1 closure recorded below (RLY2903).
 See `CONFLUENCE_RLY2890_VERIFICATION.md` for evidence and the review checklist.
 
 ## Phase 1 closure / next gate
