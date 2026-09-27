@@ -4,6 +4,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 from types import SimpleNamespace
+import shutil
 import tempfile
 import unittest
 
@@ -23,18 +24,20 @@ class LoopbackTests(unittest.TestCase):
             root = Path(d)
             builder = ReleaseBuilder(source_assets=assets(root), config=CONFIG, source_commit='synthetic')
             receipt = builder.build((article(),), root/'artifact')
-            server = ThreadingHTTPServer(('127.0.0.1',0),partial(QuietHandler,directory=str(receipt.output)))
+            for mount in ('one', 'two'):
+                shutil.copytree(receipt.output, root/mount)
+            server = ThreadingHTTPServer(('127.0.0.1',0),partial(QuietHandler,directory=str(root)))
             thread = Thread(target=server.serve_forever,daemon=True)
             thread.start()
             base = f'http://127.0.0.1:{server.server_port}'
             # A readback port double only: production ReleaseConfig still
             # requires explicit HTTPS origins. Never weaken runtime validation.
-            endpoints = SimpleNamespace(here_now_base=base,nor_base=base)
+            endpoints = SimpleNamespace(here_now_base=base+'/one',nor_base=base+'/two')
             try:
-                result=verify_public_artifact(receipt,endpoints,removed_paths=('ja/articles/old.html',))
+                result=verify_public_artifact(receipt,endpoints,removed_paths=('ja/articles/old.html',),allow_loopback_http=True)
                 self.assertEqual(result['checksums'],'exact')
                 self.assertEqual(result['origins'],2)
                 with self.assertRaises(ReadbackUnknown):
-                    verify_public_artifact(receipt,endpoints,removed_paths=('index.html',))
+                    verify_public_artifact(receipt,endpoints,removed_paths=('index.html',),allow_loopback_http=True)
             finally:
                 server.shutdown();server.server_close();thread.join(timeout=2)
