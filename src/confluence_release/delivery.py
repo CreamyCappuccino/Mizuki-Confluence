@@ -20,6 +20,10 @@ class ReleaseDelivery:
             raise ValueError('release_root must be absolute')
         self.receipt = None
 
+    def _assert_current(self):
+        if self.runtime_guard is not None:
+            self.runtime_guard.assert_current()
+
     def check_dispatch(self, dispatch):
         validate_reconcile_dispatch(self.context, dispatch)
 
@@ -27,6 +31,7 @@ class ReleaseDelivery:
         self.jobs.record(self.context.job_id, step, value)
 
     def prepare(self, *, allow_build=True):
+        self._assert_current()
         receipts = self.jobs.receipts(self.context.job_id)
         saved = receipts.get('static_build')
         if saved:
@@ -35,18 +40,22 @@ class ReleaseDelivery:
             if self.receipt.output != expected:
                 raise ValueError('stored artifact is outside its configured JOB directory')
             verify_local_artifact(self.receipt)
+            self._assert_current()
             return
         if (not allow_build or 'here_now_started' in receipts
                 or self.context.attempt_status != 'awaiting_confirmation'):
             raise ValueError('frozen artifact receipt missing; recover evidence, never rebuild an uncertain release')
         articles = self.authority.desired_articles(self.context)
+        self._assert_current()
         self.projection.replace_all(articles)
         actual = self.projection.list_published()
         if projection_digest(actual) != projection_digest(articles):
             raise ValueError('projection differs from the approved authority snapshot')
         self._record('projection', {'content_digest': projection_digest(articles), 'articles': len(articles)})
+        self._assert_current()
         self.receipt = self.builder.build(actual, self.root / str(self.context.job_id))
         self._record('static_build', self.receipt.as_record())
+        self._assert_current()
 
     @property
     def removed_paths(self):
@@ -63,16 +72,21 @@ class ReleaseDelivery:
         if self.receipt is None:
             raise ValueError('immutable artifact was not prepared before ledger claim')
         verify_local_artifact(self.receipt)
-        if self.runtime_guard is not None:
-            self.runtime_guard.assert_current()
+        self._assert_current()
         self._record('here_now_started', {'slug': self.config.here_now_slug,
                                          'content_digest': self.receipt.content_digest})
+        self._assert_current()
         receipt = self.client.publish(self.config.here_now_slug, self.receipt)
         self._record('here_now', asdict(receipt))
+        self._assert_current()
         evidence = self.readback(self.receipt, self.config, removed_paths=self.removed_paths)
+        self._assert_current()
         self._record('public_readback', evidence)
+        # Last check before returning to PublicationWorkflow's ledger finalization.
+        self._assert_current()
 
     def lookup(self, dispatch):
+        self._assert_current()
         self.check_dispatch(dispatch)
         if self.receipt is None:
             return False
@@ -80,7 +94,10 @@ class ReleaseDelivery:
         receipt = self.client.reconcile(self.config.here_now_slug, self.receipt)
         if receipt is None:
             return False
+        self._assert_current()
         evidence = self.readback(self.receipt, self.config, removed_paths=self.removed_paths)
+        self._assert_current()
         self._record('here_now', asdict(receipt))
         self._record('public_readback', evidence)
+        self._assert_current()
         return True
