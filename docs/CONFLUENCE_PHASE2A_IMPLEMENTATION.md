@@ -2,8 +2,10 @@
 
 2026-09-27 · Implementation owner: **Mizuki / ChatGPT**.
 Base: `d09e3b6b999bd4644054332aafa9d5980f3300e1`.
-Status: code and focused local checks ready; actual local Pressroom/PG and
-external deployment are **not** asserted by these checks.
+Status: Phase 2A parent `c44725d9` passed isolated Pressroom/PG review
+(RLY2926). Its subsequent safety integration has 230 local offline tests and
+awaits final exact-SHA recheck; see `CONFLUENCE_PHASE2A_SAFETY_INTEGRATION.md`.
+External deployment remains untested and is not enabled here.
 
 ## What is reused, not reinvented
 
@@ -96,7 +98,7 @@ analytics or SEO campaign is added. These are discovery hints, not access
 control. The host-reserved here.now robots behavior is not rewritten into a
 false secrecy guarantee. Nor headers/routing remain explicit deployment setup.
 
-## Checks actually executed in ChatGPT
+## Original implementation-pass checks (historical)
 
 - **72 new focused unittest cases PASS** on Python 3.13.5.
 - `compileall` PASS.
