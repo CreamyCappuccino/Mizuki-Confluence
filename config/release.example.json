@@ -1,0 +1,7 @@
+{
+  "site_base": "https://nor.example.invalid/confluence",
+  "here_now_slug": "replace-with-dedicated-confluence-site",
+  "nor_base": "https://nor.example.invalid/confluence",
+  "project_root": "/absolute/path/to/Mizuki-Confluence",
+  "release_root": "/absolute/private/path/to/confluence-releases"
+}
