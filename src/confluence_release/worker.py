@@ -43,10 +43,14 @@ class ReleaseWorker:
                 return WorkerResult(job_ref, 'idle', 'claim', 'no eligible approved job')
             try:
                 validate_release_contract(context, self.config)
+                if self.runtime_guard is not None:
+                    self.runtime_guard.assert_current()
                 result = self.bridge.run(context, reconcile=reconcile)
                 expected = 'published' if context.job_action == 'publish' else 'unpublished'
                 if result != expected:
                     raise ValueError('destination did not reach the expected verified outcome')
+                if self.runtime_guard is not None:
+                    self.runtime_guard.assert_current()
                 self.jobs.complete(context.job_id, outcome=expected)
                 return WorkerResult(context.job_ref, expected, 'complete', 'here.now and Nor readback exact')
             except Exception as exc:

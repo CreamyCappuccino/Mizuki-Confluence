@@ -1,46 +1,76 @@
-"""Adapted AIL exact HTTP readback, with named origins instead of Nol defaults."""
-from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+"""Bridge the JOB's frozen BuildReceipt to the shared safety verifier.
 
-from .artifacts import BuildReceipt, safe_relative, sha256, verify_local_artifact
+Normal runtime uses bounded no-redirect GETs. The optional opener/fetch seams
+are explicit test transports; neither reads credentials nor deploys anything.
+"""
+from __future__ import annotations
+from urllib.error import HTTPError, URLError
+from urllib.request import Request
+
+from confluence_pressroom.public_release_readback import (
+    verify_public_artifact as verify_safety_artifact,
+)
+from confluence_pressroom.release_checksums import (
+    MANIFEST, MAX_ARTIFACT_FILE_BYTES, ReleaseReadbackMismatch,
+)
+from confluence_pressroom.release_http import (
+    ReadbackResponse, ReleaseReadbackUnavailable, read_url,
+)
+
+from .artifacts import BuildReceipt, verify_local_artifact
 from .config import ReleaseConfig
 
 
 class ReadbackUnknown(RuntimeError):
-    """Delivery may already be active; observe again without repeating upload."""
+    """Delivery may be active; keep the existing JOB's reconciliation path."""
+
+
+def _fetch_with_opener(opener, url: str) -> ReadbackResponse:
+    """Adapt injected urllib-shaped transports, including the isolated PG probe."""
+    request = Request(url, headers={'User-Agent': 'confluence-release-worker/1.0',
+                                    'Accept-Encoding': 'identity'})
+    try:
+        with opener(request, timeout=20) as response:
+            final_url = response.geturl() if hasattr(response, 'geturl') else None
+            if final_url is not None and final_url != url:
+                raise ReleaseReadbackMismatch('redirect is not exact route readback')
+            body = response.read(MAX_ARTIFACT_FILE_BYTES + 1)
+            if len(body) > MAX_ARTIFACT_FILE_BYTES:
+                raise ReleaseReadbackMismatch('remote release file exceeds readback bound')
+            return ReadbackResponse(response.status, body)
+    except HTTPError as exc:
+        status = exc.code
+        exc.close()
+        if status == 404:
+            return ReadbackResponse(404, b'')
+        if 300 <= status < 400:
+            raise ReleaseReadbackMismatch('redirect is not exact route readback') from exc
+        raise ReleaseReadbackUnavailable('readback HTTP unavailable') from exc
+    except (OSError, URLError, TimeoutError) as exc:
+        raise ReleaseReadbackUnavailable('readback transport unavailable') from exc
 
 
 def verify_public_artifact(receipt: BuildReceipt, config: ReleaseConfig, *,
-                           removed_paths: tuple[str, ...] = (), opener=urlopen) -> dict[str, object]:
+                           removed_paths: tuple[str, ...] = (), opener=None,
+                           fetch=None, allow_loopback_http: bool = False) -> dict[str, object]:
+    # Retain Phase 2A's complete receipt inventory check as well as the safety
+    # verifier's manifest/discovery checks. No rebuilt hashes or default host exception.
     verify_local_artifact(receipt)
-    bases = (config.here_now_base, config.nor_base)
+    if opener is not None and fetch is not None:
+        raise ValueError('choose one explicit readback transport')
+    transport = read_url
+    if fetch is not None:
+        transport = fetch
+    elif opener is not None:
+        transport = lambda url: _fetch_with_opener(opener, url)
     try:
-        # Same bounded parallel readback as current AIL (bd69012), without
-        # its AIL-only open robots requirement or deployment defaults.
-        reads = [(f'{base}/{safe_relative(path)}', h)
-                 for base in bases for path, h in receipt.checksums.items()]
-        def check(item):
-            url, expected = item
-            request = Request(url, headers={'User-Agent': 'confluence-release-worker/1.0'})
-            with opener(request, timeout=20) as response:
-                if response.status != 200 or sha256(response.read()) != expected:
-                    raise ReadbackUnknown('delivered artifact does not match the frozen bytes')
-        with ThreadPoolExecutor(max_workers=min(6, max(1, len(reads)))) as pool:
-            for result in pool.map(check, reads):
-                pass
-        for base in bases:
-            for relative in tuple(removed_paths) + ('__confluence-release-not-found__',):
-                request = Request(f'{base}/{safe_relative(relative)}',
-                                  headers={'User-Agent': 'confluence-release-worker/1.0'})
-                try:
-                    with opener(request, timeout=20):
-                        raise ReadbackUnknown('withdrawn/unknown route is still readable')
-                except HTTPError as exc:
-                    if exc.code != 404:
-                        raise ReadbackUnknown('absence readback is not a verified 404') from exc
-    except (URLError, TimeoutError, OSError) as exc:
-        raise ReadbackUnknown('HTTP readback unavailable; reconcile without republishing') from exc
-    return dict(files=len(receipt.checksums), origins=len(bases), checksums='exact',
-                removed=len(removed_paths))
+        result = verify_safety_artifact(receipt.output,
+            here_now_base=config.here_now_base, nol_base=config.nor_base,
+            expected_manifest_sha256=receipt.checksums[MANIFEST],
+            removed_paths=removed_paths, allow_loopback_http=allow_loopback_http,
+            fetch=transport)
+    except (ReleaseReadbackMismatch, ReleaseReadbackUnavailable) as exc:
+        # A definite mismatch still cannot complete a possibly activated release.
+        # Preserve the existing adapter/workflow handling, not a new retry engine.
+        raise ReadbackUnknown('exact readback not established; reconcile without republishing') from exc
+    return dict(result, files=len(receipt.checksums))

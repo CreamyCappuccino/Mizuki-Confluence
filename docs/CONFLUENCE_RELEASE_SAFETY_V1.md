@@ -1,6 +1,9 @@
 # Confluence release safety transplant — v1
 
-Status: implemented on a review branch; complete-checkout verification pending.
+Status: helper parent `fcbf97d6` passed complete-checkout review (RLY2924 /
+ERM000233), including 122 tests on Python 3.12/3.14. The evidence below preserves
+the original implementation-pass boundary. Current worker wiring is tracked in
+`CONFLUENCE_PHASE2A_SAFETY_INTEGRATION.md`.
 Date: 2026-09-27. Base: d09e3b6b999bd4644054332aafa9d5980f3300e1.
 
 ## Scope and source

@@ -52,8 +52,8 @@ def verify_public_artifact(
             future.result()
     if here_now_robots == "host-owned-open":
         _require_open_robots(fetch, target_url(bases[0], "robots.txt"))
-    _require_not_found(fetch, target_url(bases[1], UNKNOWN_ROUTE))
     for base in bases:
+        _require_not_found(fetch, target_url(base, UNKNOWN_ROUTE))
         _require_not_found(fetch, target_url(base, "sitemap.xml"))
         for relative in removed:
             _require_not_found(fetch, target_url(base, relative))

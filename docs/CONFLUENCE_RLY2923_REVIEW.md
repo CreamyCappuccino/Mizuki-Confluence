@@ -2,7 +2,11 @@
 
 Date: 2026-09-27. Implementation owner: Mizuki / ChatGPT.
 Base: `a235b796fe32f8838eb79c4b1fa1ea9617060dbf`.
-Status: two reported defects corrected; exact-SHA integration recheck pending.
+Status: correction closed at `c44725d9` by RLY2926 / ERM000234.
+161 tests, real renderer, real writer_profiles read/set and the unpatched owner
+PG probe passed. The verification paragraphs below describe the earlier
+correction pass; current two-branch integration is tracked in
+`CONFLUENCE_PHASE2A_SAFETY_INTEGRATION.md`.
 
 ## Evidence and scope
 

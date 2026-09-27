@@ -99,7 +99,9 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(self.events,[])
     def test_runtime_guard_before_remote(self):
         def fail():raise ValueError('stale runtime')
-        d=self.make(runtime_guard=SimpleNamespace(assert_current=fail));d.prepare()
+        guard=SimpleNamespace(assert_current=lambda:None)
+        d=self.make(runtime_guard=guard);d.prepare()
+        guard.assert_current=fail
         with self.assertRaises(ValueError):d.perform(dispatch(self.c))
         self.assertNotIn('here_now_started',self.jobs.saved);self.assertEqual(self.events,[])
 

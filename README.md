@@ -33,13 +33,18 @@ new author-account system is introduced. The original prototype is unchanged.
 - [Source/delta plan](docs/CONFLUENCE_PHASE2A_PLAN.md)
 - [Implementation, local commands, and remaining setup](docs/CONFLUENCE_PHASE2A_IMPLEMENTATION.md)
 
-72 new focused tests and compileall pass in the ChatGPT implementation environment.
-Loopback HTTP and Chromium interaction checks also pass. These are **not** an
-actual Pressroom/PostgreSQL durable-chain or external-host deployment result.
-The inherited 79 Phase 1 tests were not rerun in this implementation pass.
+The reviewed Phase 2A parent `c44725d9` passed 161 tests, real renderer,
+writer-profile preservation and isolated PG PUB/APR/JOB/reconcile/withdraw.
+The safety parent `fcbf97d6` passed its separate 122-test helper review. Those
+results are not silently reused as the result of their integration.
+
+[Phase 2A + safety integration](docs/CONFLUENCE_PHASE2A_SAFETY_INTEGRATION.md)
+connects one shared lock/guard and manifest-pinned readback to the actual worker.
+The complete combined source now passes 230 offline tests; the final exact-SHA
+local Pressroom/PG review and production activation remain separate.
 
 ```sh
-PYTHONPATH=src:tests python3 -m unittest discover -s tests -p 'test_phase2_*.py' -v
+PYTHONPATH=src:tests python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 -m compileall -q src tools tests
 PYTHONPATH=src python3 -m confluence_release.cli --config config/release.example.json plan
 ```
