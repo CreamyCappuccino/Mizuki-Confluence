@@ -115,13 +115,24 @@ HTTP vendor behavior and JOB bridge steps use explicit doubles except for the
 local HTTP smoke. The inherited **79 Phase 1 tests were not re-executed in this
 container pass**; do not call the result a 151-test full integration PASS.
 Actual PG, exact local Pressroom, renderer replay and PUB/APR/JOB need the pinned
-runtime for verification. No production DB/registry, real manuscript or external
+runtime for verification. `tests/phase2_pg_probe.py` is the supplied probe for
+that environment; it was compiled but **not executed** in this container. No production DB/registry, real manuscript or external
 here.now/Nor endpoint was changed by this implementation pass.
 
 ## Concrete remaining work
 
-Review this exact code against the installed Pressroom environment, including
-actual APR -> JOB, publish/withdraw and recovery. Then configure the dedicated
+Review this exact code against the installed Pressroom environment. The
+ChatGPT-authored `tests/phase2_pg_probe.py:run_probe` accepts the existing test
+session factory and manuscript core, a dedicated loopback PG projection URL,
+this checkout's project root, and an absolute private temporary release root.
+Use an empty `confluence_phase2a_*` database initialized by the normal Pressroom
+test harness. The probe creates a synthetic ART and uses its returned references
+for real PUB -> APR -> JOB, lost-reply recovery without re-upload, canonical
+ledger completion and withdrawal. Hosting is an explicit in-memory port double;
+no real here.now/Nor URL is contacted. The caller owns test DB setup/cleanup.
+The supplied manuscript core must use that same isolated session factory.
+
+After this test, actual publication still requires the configured endpoints. Then configure the dedicated
 projection DB, here.now site and Nor route and run the approved synthetic article.
 The implementation remains here; the Pressroom colleague supplies compatibility
 results and local operational evidence, not replacement Confluence code.
