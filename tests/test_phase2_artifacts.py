@@ -14,7 +14,7 @@ from phase2_support import CONFIG, article, assets
 
 class Response:
     def __init__(self,data,status=200):self.data,self.status=data,status
-    def read(self):return self.data
+    def read(self, size=-1):return self.data if size < 0 else self.data[:size]
     def __enter__(self):return self
     def __exit__(self,*args):pass
 
