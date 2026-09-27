@@ -1,6 +1,10 @@
 # Phase 2A + release safety integration
 
-2026-09-27. Owner: Mizuki / ChatGPT. Status: safety wiring implemented; complete-checkout tests pass locally; final exact-SHA real-Pressroom review pending.
+2026-09-27. Owner: Mizuki / ChatGPT. Status: integrated rehearsal gate PASSED at
+`8cead09e7b75392919455d0621b2e9bb6d0e7288`; main readback matches the reviewed
+code. See `CONFLUENCE_PHASE2A_ACCEPTANCE.md`. Production remains inactive.
+The checklist and checkpoint evidence below preserve the implementation history;
+the acceptance record closes the previously pending exact-SHA review.
 
 ## Parents and evidence
 

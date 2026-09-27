@@ -20,3 +20,17 @@ Owner: Mizuki / ChatGPT. Date: 2026-09-27.
   Production DB, registry, AIL, live credentials, hosting and manuscripts untouched.
 
 Entry: docs/CONFLUENCE_PHASE2A_SAFETY_INTEGRATION.md.
+
+## Exact-SHA closure
+
+- ERM000238 / CX-MSG0267: reviewer executed exact `8cead09e` in a clean checkout.
+  230/230 tests passed on Python 3.12.11 and 3.14.7; real renderer and host profile
+  read/set passed. Fresh isolated PG completed PUB/APR/JOB, lost-reply reconcile
+  without re-upload, and withdrawal; shared lock/guard/readback calls were observed
+  without replacing those functions.
+- GitHub Actions run 36309789541 independently passed all 230 offline tests.
+- Main was read as exact `8cead09e`, compare identical; no redundant ref write.
+- Documentation-only closeout does not change reviewed code, activate hosting,
+  modify production, or claim live here.now/Nor readback.
+- Acceptance: docs/CONFLUENCE_PHASE2A_ACCEPTANCE.md. Dedicated hosting setup remains
+  UNKNOWN, with production composition and activation still separate.
