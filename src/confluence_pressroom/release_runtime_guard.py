@@ -6,6 +6,7 @@ from pathlib import Path
 
 RUNTIME_INPUTS = (
     "src/confluence_pressroom",
+    "src/confluence_release",
     "prototype",
     "tools",
     "pyproject.toml",
