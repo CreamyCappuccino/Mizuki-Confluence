@@ -1,6 +1,6 @@
 # Confluence Pressroom provider — Phase 1 implementation
 
-Status: RLY2890 corrections implemented; exact-SHA local integration recheck pending; private rehearsal only. No production destination registration or real manuscript publication is authorized by this document.
+Status: Phase 1 provider/staging gate closed on 2026-09-27 at `51d086eb157fd9535ec64e07d4e99a55c844f723`; exact-SHA local integration recheck passed and the commit was fast-forwarded to main. Production destination registration and real manuscript publication remain separate gates.
 
 ## Purpose
 
@@ -112,15 +112,20 @@ Stored renderer fixture byte integrity and compileall pass. Actual rerendering
 against the local Pressroom/converter environment must still be run separately.
 See `CONFLUENCE_RLY2890_VERIFICATION.md` for evidence and the review checklist.
 
-## Before main / before rehearsal
+## Phase 1 closure / next gate
 
-The Pressroom-side collaborator reviews the new exact SHA in the actual pinned
-checkout. Confluence implementation remains the ChatGPT-side responsibility.
-Recheck the 79 tests, real renderer `--rerender`, adapter import/signatures and
-an isolated PG/private-staging reproduction of all four RLY2890 counterexamples.
-Do not reuse PASS results for the old SHA. Main stays held until that evidence
-is returned. A provider review PASS is not completion of the full APR/JOB durable
-chain and is not production deployment authorization.
+Exact SHA `51d086eb157fd9535ec64e07d4e99a55c844f723` was rechecked against the pinned
+local Pressroom checkout. The 79-test suite, real renderer replay, adapter
+compatibility, isolated PostgreSQL/private-staging normal path, and the four
+RLY2890 negative cases passed with no blocking issue. That exact SHA was then
+fast-forwarded to main.
 
-No production DB, running destination registry, external URL or real manuscript
-is needed for this recheck.
+This closes the provider/private-staging gate only. The full production
+APR -> JOB durable release chain, production destination registration, Neon
+public projection, here.now delivery, Nor routing, and production readback are
+separate follow-up gates.
+
+For those stages, do not redesign from zero. Follow
+`docs/CONFLUENCE_AIL_REFERENCE_STRATEGY.md`: inspect the proven AIL release
+implementation first, adapt the Confluence-specific delta, and verify only the
+relevant compatibility/regression boundaries.
