@@ -1,0 +1,46 @@
+name: Confluence integration checks
+on:
+  push:
+    branches: [integration/phase2a-safety-20260927]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: confluence-check-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: src:tests
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact public source without persisted credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/confluence-review"
+          git rev-parse HEAD > "$RUNNER_TEMP/confluence-review/commit.txt"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/confluence-review/source.tar.gz"
+      - name: Full offline suite and stored renderer integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 -m unittest discover -s tests -p 'test_*.py' -v 2>&1 | tee "$RUNNER_TEMP/confluence-review/tests.txt"
+          python3 -m compileall -q src tools tests
+          python3 tests/fixtures/confluence/renderer/verify_fixture.py
+      - name: Save public-source test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: confluence-review-${{ github.sha }}
+          path: ${{ runner.temp }}/confluence-review/
+          retention-days: 7
+          if-no-files-found: error
