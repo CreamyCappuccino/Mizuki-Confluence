@@ -114,6 +114,7 @@ def run_probe(session_factory, manuscript_core, *, projection_database_url: str,
     from confluence_release.projection import PostgresProjectionStore
     from confluence_release.readback import verify_public_artifact
     from confluence_release.worker import ReleaseWorker
+    from confluence_release.runtime_guard import ReleaseRuntimeGuard
 
     with session_factory() as session:
         _isolated_url(session.get_bind().url)
@@ -121,6 +122,7 @@ def run_probe(session_factory, manuscript_core, *, projection_database_url: str,
                  'probe requires an empty canonical manuscript database')
     _isolated_url(projection_database_url)
     _require(private_root.is_absolute(), 'private probe root must be absolute')
+    guard = ReleaseRuntimeGuard.capture(project_root)
     config = ReleaseConfig('https://nor.example.invalid/confluence', 'synthetic-confluence',
                            'https://nor.example.invalid/confluence')
     reply = manuscript_core.manuscript_manage(_synthetic_create_request())
@@ -138,13 +140,13 @@ def run_probe(session_factory, manuscript_core, *, projection_database_url: str,
     projection.initialize_schema()
     jobs = ReleaseJobStore(session_factory,config,private_root)
     builder = ReleaseBuilder(source_assets=project_root/'prototype/assets',config=config,
-                             source_commit='synthetic-probe-source')
+                             source_commit=guard.source_commit)
     hosting = MemoryHosting(config)
     def readback(receipt,settings,**kwargs):
         return verify_public_artifact(receipt,settings,opener=hosting.open,**kwargs)
     bridge = PublicationBridge(session_factory,config,jobs,projection,builder,hosting,
-                               private_root,None,readback=readback)
-    worker = ReleaseWorker(jobs,bridge,config)
+                               private_root,guard,readback=readback)
+    worker = ReleaseWorker(jobs,bridge,config,runtime_guard=guard)
     first = worker.run_once(job.job_ref)
     _require(first.status=='unknown_reconcile','lost reply must remain unknown')
     with session_factory() as session:
