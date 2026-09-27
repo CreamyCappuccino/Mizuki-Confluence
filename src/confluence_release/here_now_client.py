@@ -76,6 +76,15 @@ def manifest_hashes(details: dict) -> dict[str, str]:
     return result
 
 
+def validated_finalize_url(slug: str, url: str) -> str:
+    p = urlsplit(url)
+    expected_path = f'/api/v1/publish/{slug}/finalize'
+    if (p.scheme != 'https' or p.netloc != 'here.now' or p.username is not None
+            or p.password is not None or p.path != expected_path or p.query or p.fragment):
+        raise HereNowError('here.now finalize URL does not match the configured site')
+    return url
+
+
 class HereNowClient:
     def __init__(self, api_key: str, *, opener=None, timeout: float = 30):
         if not api_key.strip():
@@ -122,6 +131,10 @@ class HereNowClient:
         if not isinstance(upload, dict) or not isinstance(upload.get('uploads', []), list):
             raise HereNowError('here.now prepare has invalid uploads')
         version = required_text(upload, 'versionId')
+        prepared_slug = prepared.get('slug')
+        if prepared_slug is not None and prepared_slug != slug:
+            raise HereNowError('here.now prepare target does not match the configured site')
+        finalize_url = validated_finalize_url(slug, required_text(upload, 'finalizeUrl'))
         seen = set()
         for entry in upload.get('uploads', []):
             name = required_text(entry, 'path')
@@ -139,13 +152,22 @@ class HereNowClient:
                 if not 200 <= res.status < 300:
                     raise HereNowError('here.now artifact upload failed')
         try:
-            self._request('POST', required_text(upload, 'finalizeUrl'), {'versionId': version})
+            finalized = self._request('POST', finalize_url, {'versionId': version})
+            finalized_slug = required_text(finalized, 'slug')
+            finalized_version = required_text(finalized, 'currentVersionId')
+            if finalized_slug != slug:
+                raise HereNowError('here.now finalize response changed the configured site')
+            if finalized_version != version and finalized.get('unchanged') is not True:
+                raise HereNowError('here.now finalize response changed the prepared version')
             after = self.site_details(slug)
+            after_version = required_text(after, 'currentVersionId')
+            if after_version != finalized_version:
+                raise HereNowOutcomeUnknownError('finalized version differs on readback; reconcile')
             if manifest_hashes(after) != receipt.checksums:
                 raise HereNowOutcomeUnknownError('finalized manifest differs; reconcile')
         except (URLError, OSError, HereNowError, ValueError) as exc:
             raise HereNowOutcomeUnknownError('finalize/readback outcome unknown; reconcile before retry') from exc
-        return HereNowReceipt(slug, required_text(after, 'currentVersionId'), len(seen), False)
+        return HereNowReceipt(slug, finalized_version, len(seen), False)
 
     def reconcile(self, slug: str, receipt: BuildReceipt) -> HereNowReceipt | None:
         verify_local_artifact(receipt)
