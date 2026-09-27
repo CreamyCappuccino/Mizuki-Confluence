@@ -40,8 +40,12 @@ results are not silently reused as the result of their integration.
 
 [Phase 2A + safety integration](docs/CONFLUENCE_PHASE2A_SAFETY_INTEGRATION.md)
 connects one shared lock/guard and manifest-pinned readback to the actual worker.
-The complete combined source now passes 230 offline tests; the final exact-SHA
-local Pressroom/PG review and production activation remain separate.
+The combined code at `8cead09e7b75392919455d0621b2e9bb6d0e7288` is now on
+main. Its new exact-SHA review passed 230 tests on both Python 3.12 and 3.14,
+real renderer replay, existing writer-profile read/set, and a fresh isolated PG
+PUB/APR/JOB/reconcile/withdraw path with the shared safety mechanisms active.
+[Acceptance and evidence](docs/CONFLUENCE_PHASE2A_ACCEPTANCE.md) records the scope.
+This closes the integration/rehearsal gate, not production activation.
 
 ```sh
 PYTHONPATH=src:tests python3 -m unittest discover -s tests -p 'test_*.py' -v
