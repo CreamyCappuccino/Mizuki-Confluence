@@ -77,6 +77,23 @@ class MemoryHosting:
         raise AssertionError('unexpected external URL in in-memory hosting port')
 
 
+def _synthetic_create_request():
+    """Build the probe's draft request without touching a DB or publication API.
+
+    b5ce8d9 requires persona_key when author_ref is omitted. This synthetic key
+    is local to the dedicated probe database; real refs still come from create.
+    """
+    from pressroom.domain import AuthorAttributionInput
+    from pressroom.services import ManuscriptManageInput
+
+    return ManuscriptManageInput(action='create',
+        title='合成 Phase 2A publication probe', markdown='# 合成記事\n\n接続確認専用の本文です。',
+        slug='confluence-probe-'+uuid4().hex, locale='ja',
+        author=AuthorAttributionInput(persona_name='合成作者',
+            persona_key='confluence-phase2a-probe', harness='Probe', model=None),
+        actor_name='Confluence synthetic probe', format='json')
+
+
 def run_probe(session_factory, manuscript_core, *, projection_database_url: str,
               project_root: Path, private_root: Path) -> dict:
     """Run real PUB->APR->JOB->unknown/reconcile->withdraw in supplied test PG.
@@ -86,9 +103,9 @@ def run_probe(session_factory, manuscript_core, *, projection_database_url: str,
     of the canonical Pressroom schema or database drops are performed here.
     """
     from sqlalchemy import select,func
-    from pressroom.domain import Actor,AuthorAttributionInput
+    from pressroom.domain import Actor
     from pressroom.persistence import Manuscript,ReleaseJob,PublicationAttempt
-    from pressroom.services import ApprovalQueueService,ManuscriptManageInput,PublicationManageInput,PublicationWorkflow
+    from pressroom.services import ApprovalQueueService,PublicationManageInput,PublicationWorkflow
     from confluence_release.adapter import HereNowDestinationAdapter
     from confluence_release.artifacts import ReleaseBuilder
     from confluence_release.composition import PublicationBridge
@@ -106,11 +123,7 @@ def run_probe(session_factory, manuscript_core, *, projection_database_url: str,
     _require(private_root.is_absolute(), 'private probe root must be absolute')
     config = ReleaseConfig('https://nor.example.invalid/confluence', 'synthetic-confluence',
                            'https://nor.example.invalid/confluence')
-    reply = manuscript_core.manuscript_manage(ManuscriptManageInput(action='create',
-        title='合成 Phase 2A publication probe', markdown='# 合成記事\n\n接続確認専用の本文です。',
-        slug='confluence-probe-'+uuid4().hex, locale='ja',
-        author=AuthorAttributionInput(persona_name='合成作者',harness='Probe',model=None),
-        actor_name='Confluence synthetic probe', format='json'))
+    reply = manuscript_core.manuscript_manage(_synthetic_create_request())
     ref = _returned_ref(reply)
     _require(ref is not None,'create must return its actual manuscript_ref')
     destination = HereNowDestinationAdapter(session_factory,config)
