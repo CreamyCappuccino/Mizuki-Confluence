@@ -7,6 +7,7 @@ from __future__ import annotations
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
+from confluence_pressroom.here_now_html import HereNowHtmlPolicy
 from confluence_pressroom.public_release_readback import (
     verify_public_artifact as verify_safety_artifact,
 )
@@ -52,7 +53,8 @@ def _fetch_with_opener(opener, url: str) -> ReadbackResponse:
 
 def verify_public_artifact(receipt: BuildReceipt, config: ReleaseConfig, *,
                            removed_paths: tuple[str, ...] = (), opener=None,
-                           fetch=None, allow_loopback_http: bool = False) -> dict[str, object]:
+                           fetch=None, allow_loopback_http: bool = False,
+                           html_policy: HereNowHtmlPolicy | None = None) -> dict[str, object]:
     # Retain Phase 2A's complete receipt inventory check as well as the safety
     # verifier's manifest/discovery checks. No rebuilt hashes or default host exception.
     verify_local_artifact(receipt)
@@ -68,9 +70,9 @@ def verify_public_artifact(receipt: BuildReceipt, config: ReleaseConfig, *,
             here_now_base=config.here_now_base, nol_base=config.nor_base,
             expected_manifest_sha256=receipt.checksums[MANIFEST],
             removed_paths=removed_paths, allow_loopback_http=allow_loopback_http,
-            fetch=transport)
+            fetch=transport, html_policy=html_policy)
     except (ReleaseReadbackMismatch, ReleaseReadbackUnavailable) as exc:
         # A definite mismatch still cannot complete a possibly activated release.
         # Preserve the existing adapter/workflow handling, not a new retry engine.
-        raise ReadbackUnknown('exact readback not established; reconcile without republishing') from exc
+        raise ReadbackUnknown('declared readback not established; reconcile without republishing') from exc
     return dict(result, files=len(receipt.checksums))
