@@ -52,7 +52,7 @@ class ReleaseWorker:
                 if self.runtime_guard is not None:
                     self.runtime_guard.assert_current()
                 self.jobs.complete(context.job_id, outcome=expected)
-                return WorkerResult(context.job_ref, expected, 'complete', 'here.now and Nor readback exact')
+                return WorkerResult(context.job_ref, expected, 'complete', 'here.now and Nor readback verified; see receipt comparison mode')
             except Exception as exc:
                 # The bridge knows whether a mutating external call may have run.
                 # Never label such a failure safe to retry just because its class
