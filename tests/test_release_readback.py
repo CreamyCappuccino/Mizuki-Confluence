@@ -125,6 +125,29 @@ class ReadbackTests(unittest.TestCase):
         with self.assertRaises(ReleaseReadbackMismatch):
             self.verify()
 
+    def test_provider_meta_rejects_unobserved_newline_variants(self):
+        relative = 'index.html'
+        target = target_url(self.bases[0], relative)
+        valid = self.provider_html(self.bases[0], relative)
+        block_start = valid.index(b'<meta property="og:title"')
+        block_end = valid.index(b'</head>')
+        block = valid[block_start:block_end]
+        local = (self.root / relative).read_bytes()
+
+        crlf = block.replace(b'\n', b'\r\n')
+        variants = (
+            local.replace(b'</head>', crlf + b'</head>', 1),
+            local.replace(b'</head>', b'\n' + block + b'</head>', 1),
+            local.replace(b'</head>', block + b'\n</head>', 1),
+            local.replace(b'</head>', b'\n' + block + b'\n</head>', 1),
+        )
+        for remote in variants:
+            with self.subTest(remote=remote):
+                self.sync()
+                self.remote[target] = ReadbackResponse(200, remote)
+                with self.assertRaises(ReleaseReadbackMismatch):
+                    self.verify()
+
     def test_provider_meta_does_not_hide_any_other_html_change(self):
         relative = 'ja/articles/art9001.html'
         target = target_url(self.bases[1], relative)
