@@ -37,6 +37,24 @@ class ReadbackTests(unittest.TestCase):
         return verify_public_artifact(self.root, here_now_base=self.bases[0], nol_base=self.bases[1],
                                       expected_manifest_sha256=self.pin, fetch=self.fetch, **kw)
 
+    def provider_html(self, base, relative, *, title="Confluence",
+                      description="A synthetic site for testing publication workflows and content retrieval.",
+                      og_url=None, og_type="website", twitter="summary", extra=b"", duplicate=False):
+        local = (self.root / relative).read_bytes()
+        url = target_url(base, relative) if og_url is None else og_url
+        block = (
+            f'<meta property="og:title" content="{title}" />\n'
+            f'<meta property="og:description" content="{description}" />\n'
+            f'<meta property="og:url" content="{url}" />\n'
+            f'<meta property="og:type" content="{og_type}" />\n'
+            f'<meta name="twitter:card" content="{twitter}" />'
+        ).encode()
+        if duplicate:
+            block += b"\n" + block
+        block += extra
+        return local.replace(b"</head>", block + b"</head>", 1)
+
+
     def test_exact_two_origin_artifact_and_removed_paths_pass(self):
         result = self.verify(removed_paths=('ja/articles/art8999.html',))
         self.assertEqual(result['checksums'], 'exact')
@@ -44,6 +62,86 @@ class ReadbackTests(unittest.TestCase):
         self.assertEqual(result['external_discovery'], 'discouraged')
         self.assertIn(self.bases[1] + '/ja/articles/art9001.html', self.calls)
         self.assertIn(self.bases[0] + '/ja/articles/art8999.html', self.calls)
+
+    def test_exact_provider_social_meta_injection_is_accepted_for_html_only(self):
+        html_paths = ('index.html', 'browse.html', 'ja/articles/art9001.html')
+        for base in self.bases:
+            for relative in html_paths:
+                self.remote[target_url(base, relative)] = ReadbackResponse(
+                    200, self.provider_html(base, relative)
+                )
+        result = self.verify()
+        self.assertEqual(result['checksums'], 'exact-with-provider-html-policy')
+        self.assertEqual(result['provider_html_transforms'], len(html_paths) * len(self.bases))
+
+    def test_provider_meta_og_url_is_bound_to_exact_origin_and_route(self):
+        relative = 'ja/articles/art9001.html'
+        target = target_url(self.bases[1], relative)
+        wrong_urls = (
+            target_url(self.bases[0], relative),
+            self.bases[1] + '/ja/articles/other.html',
+            target + '?x=1',
+            target + '#fragment',
+        )
+        for wrong in wrong_urls:
+            with self.subTest(og_url=wrong):
+                self.sync()
+                self.remote[target] = ReadbackResponse(
+                    200, self.provider_html(self.bases[1], relative, og_url=wrong)
+                )
+                with self.assertRaises(ReleaseReadbackMismatch):
+                    self.verify()
+
+    def test_provider_meta_values_and_exact_five_tag_shape_are_fixed(self):
+        relative = 'index.html'
+        target = target_url(self.bases[0], relative)
+        cases = (
+            dict(title='Other'),
+            dict(description='Other description'),
+            dict(og_type='article'),
+            dict(twitter='summary_large_image'),
+            dict(extra=b'\n<meta name="extra" content="not-allowed" />'),
+            dict(duplicate=True),
+        )
+        for values in cases:
+            with self.subTest(values=values):
+                self.sync()
+                self.remote[target] = ReadbackResponse(
+                    200, self.provider_html(self.bases[0], relative, **values)
+                )
+                with self.assertRaises(ReleaseReadbackMismatch):
+                    self.verify()
+
+    def test_provider_meta_must_be_immediately_before_head_close(self):
+        relative = 'index.html'
+        target = target_url(self.bases[0], relative)
+        valid = self.provider_html(self.bases[0], relative)
+        block_start = valid.index(b'<meta property="og:title"')
+        block_end = valid.index(b'</head>')
+        block = valid[block_start:block_end]
+        local = (self.root / relative).read_bytes()
+        moved = local.replace(b'<body>', block + b'<body>', 1)
+        self.remote[target] = ReadbackResponse(200, moved)
+        with self.assertRaises(ReleaseReadbackMismatch):
+            self.verify()
+
+    def test_provider_meta_does_not_hide_any_other_html_change(self):
+        relative = 'ja/articles/art9001.html'
+        target = target_url(self.bases[1], relative)
+        transformed = self.provider_html(self.bases[1], relative)
+        self.remote[target] = ReadbackResponse(
+            200, transformed.replace(b'synthetic</article>', b'tampered</article>')
+        )
+        with self.assertRaises(ReleaseReadbackMismatch):
+            self.verify()
+
+    def test_provider_policy_never_normalizes_non_html_files(self):
+        target = target_url(self.bases[0], 'search.json')
+        self.remote[target] = ReadbackResponse(
+            200, self.remote[target].body + b'\n<!-- provider-looking change -->'
+        )
+        with self.assertRaises(ReleaseReadbackMismatch):
+            self.verify()
 
     def test_each_surface_checksum_is_independent(self):
         for base in self.bases:
