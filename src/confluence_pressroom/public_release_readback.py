@@ -14,6 +14,14 @@ from .release_http import ReadbackResponse, read_url, target_url, validate_base
 MAX_READBACK_WORKERS = 6
 UNKNOWN_ROUTE = "__pressroom-release-worker-not-found__"
 
+# here.now currently injects one site-owned social metadata block immediately
+# before </head>. Keep this policy deliberately narrow: the remote body must be
+# byte-identical to the frozen local HTML after removing exactly this block.
+_PROVIDER_OG_TITLE = "Confluence"
+_PROVIDER_OG_DESCRIPTION = "A synthetic site for testing publication workflows and content retrieval."
+_PROVIDER_OG_TYPE = "website"
+_PROVIDER_TWITTER_CARD = "summary"
+
 
 def verify_public_artifact(
     artifact: Path,
@@ -41,15 +49,22 @@ def verify_public_artifact(
     removed = tuple(safe_relative_path(path) for path in removed_paths)
     if set(removed) & (set(expected) | {MANIFEST}) or UNKNOWN_ROUTE in expected:
         raise ReleaseReadbackMismatch("present and removed/reserved paths overlap")
-    reads = [(target_url(base, relative), digest)
-             for i, base in enumerate(bases) for relative, digest in expected.items()
-             if not (i == 0 and relative == "robots.txt" and here_now_robots == "host-owned-open")]
-    reads.extend((target_url(base, MANIFEST), expected_manifest_sha256) for base in bases)
+    reads = []
+    for i, base in enumerate(bases):
+        for relative, digest in expected.items():
+            if i == 0 and relative == "robots.txt" and here_now_robots == "host-owned-open":
+                continue
+            url = target_url(base, relative)
+            local_html = None
+            if relative.lower().endswith((".html", ".htm")):
+                local_html = (artifact / relative).read_bytes()
+            reads.append((url, digest, local_html))
+    reads.extend((target_url(base, MANIFEST), expected_manifest_sha256, None) for base in bases)
     with ThreadPoolExecutor(max_workers=min(MAX_READBACK_WORKERS, max(1, len(reads))),
                             thread_name_prefix="confluence-readback") as executor:
-        futures = [executor.submit(_require_checksum, fetch, url, digest) for url, digest in reads]
-        for future in futures:
-            future.result()
+        futures = [executor.submit(_require_checksum, fetch, url, digest, local_html)
+                   for url, digest, local_html in reads]
+        modes = [future.result() for future in futures]
     if here_now_robots == "host-owned-open":
         _require_open_robots(fetch, target_url(bases[0], "robots.txt"))
     for base in bases:
@@ -57,15 +72,52 @@ def verify_public_artifact(
         _require_not_found(fetch, target_url(base, "sitemap.xml"))
         for relative in removed:
             _require_not_found(fetch, target_url(base, relative))
-    return {"files": len(expected), "origins": 2, "checksums": "exact", "unknown": 404,
+    provider_html = sum(mode == "provider-html" for mode in modes)
+    return {"files": len(expected), "origins": 2,
+            "checksums": "exact" if provider_html == 0 else "exact-with-provider-html-policy",
+            "provider_html_transforms": provider_html, "unknown": 404,
             "removed": len(removed), "reserved": int(here_now_robots == "host-owned-open"),
             "external_discovery": "discouraged", "manifest_sha256": expected_manifest_sha256}
 
 
-def _require_checksum(fetch, url: str, expected: str) -> None:
+def _provider_meta_block(url: str, newline: str) -> bytes:
+    lines = (
+        f'<meta property="og:title" content="{_PROVIDER_OG_TITLE}" />',
+        f'<meta property="og:description" content="{_PROVIDER_OG_DESCRIPTION}" />',
+        f'<meta property="og:url" content="{url}" />',
+        f'<meta property="og:type" content="{_PROVIDER_OG_TYPE}" />',
+        f'<meta name="twitter:card" content="{_PROVIDER_TWITTER_CARD}" />',
+    )
+    return newline.join(lines).encode("utf-8")
+
+
+def _matches_provider_html_transform(local: bytes, remote: bytes, url: str) -> bool:
+    marker = b"</head>"
+    if local.count(marker) != 1:
+        return False
+    prefix, suffix = local.split(marker, 1)
+    suffix = marker + suffix
+    if not remote.startswith(prefix) or not remote.endswith(suffix):
+        return False
+    inserted = remote[len(prefix):len(remote) - len(suffix)]
+    for newline in ("\n", "\r\n"):
+        block = _provider_meta_block(url, newline)
+        for candidate in (block, block + newline.encode(), newline.encode() + block,
+                          newline.encode() + block + newline.encode()):
+            if inserted == candidate:
+                return True
+    return False
+
+
+def _require_checksum(fetch, url: str, expected: str, local_html: bytes | None = None) -> str:
     response = fetch(url)
-    if response.status != 200 or hashlib.sha256(response.body).hexdigest() != expected:
+    if response.status != 200:
         raise ReleaseReadbackMismatch("remote release status/checksum mismatch")
+    if hashlib.sha256(response.body).hexdigest() == expected:
+        return "exact"
+    if local_html is not None and _matches_provider_html_transform(local_html, response.body, url):
+        return "provider-html"
+    raise ReleaseReadbackMismatch("remote release status/checksum mismatch")
 
 
 def _require_not_found(fetch, url: str) -> None:
