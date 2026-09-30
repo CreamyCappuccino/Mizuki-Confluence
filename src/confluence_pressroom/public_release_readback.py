@@ -100,13 +100,9 @@ def _matches_provider_html_transform(local: bytes, remote: bytes, url: str) -> b
     if not remote.startswith(prefix) or not remote.endswith(suffix):
         return False
     inserted = remote[len(prefix):len(remote) - len(suffix)]
-    for newline in ("\n", "\r\n"):
-        block = _provider_meta_block(url, newline)
-        for candidate in (block, block + newline.encode(), newline.encode() + block,
-                          newline.encode() + block + newline.encode()):
-            if inserted == candidate:
-                return True
-    return False
+    # Accept only the exact form observed in the preserved production evidence:
+    # LF between the five tags, with no leading/trailing newline around the block.
+    return inserted == _provider_meta_block(url, "\n")
 
 
 def _require_checksum(fetch, url: str, expected: str, local_html: bytes | None = None) -> str:
