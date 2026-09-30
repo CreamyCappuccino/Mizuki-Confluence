@@ -68,3 +68,15 @@ hints, not authentication. Draft/private writing is excluded from the projection
 **Public code, private content.** Local/private manuscripts stay outside this
 public repository. Content intended for publication enters through Pressroom,
 not by committing private source material directly.
+
+
+## Explicit provider-HTML verification
+
+[Declared HTML transformation and recovery](docs/CONFLUENCE_HTML_TRANSFORM_V1.md)
+adds an opt-in, operator-owned verification profile for the observed five-meta
+here.now insertion. Raw exact remains the default. With a profile, the verifier
+predicts one alternate complete HTML representation from the frozen original;
+it never strips arbitrary received metadata. Non-HTML stays raw exact, and
+original artifacts, manifest pins and publication identities are preserved.
+See the spec for saved-byte replay, exact-JOB reconciliation, policy evidence,
+and the distinction between local tests and live acceptance.
