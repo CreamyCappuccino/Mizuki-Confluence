@@ -2,6 +2,10 @@
 from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
+from functools import partial
+
+from confluence_pressroom.here_now_html import HereNowHtmlPolicy
+from confluence_pressroom.release_checksums import MANIFEST
 
 from .artifacts import BuildReceipt, verify_local_artifact
 from .projection import projection_digest
@@ -11,11 +15,15 @@ from .release_contract import validate_reconcile_dispatch
 
 class ReleaseDelivery:
     def __init__(self, context, *, config, jobs, authority, projection, builder, client,
-                 release_root: Path, readback=verify_public_artifact, runtime_guard=None):
+                 release_root: Path, readback=verify_public_artifact, runtime_guard=None,
+                 html_policy: HereNowHtmlPolicy | None = None):
         self.context, self.config, self.jobs = context, config, jobs
         self.runtime_guard = runtime_guard
         self.authority, self.projection, self.builder = authority, projection, builder
-        self.client, self.root, self.readback = client, release_root, readback
+        self.client, self.root = client, release_root
+        self.html_policy = html_policy
+        self.readback = (readback if html_policy is None else
+                         partial(readback, html_policy=html_policy))
         if not release_root.is_absolute():
             raise ValueError('release_root must be absolute')
         self.receipt = None
@@ -23,6 +31,11 @@ class ReleaseDelivery:
     def _assert_current(self):
         if self.runtime_guard is not None:
             self.runtime_guard.assert_current()
+
+    def _check_profile(self):
+        if self.html_policy is not None:
+            self.html_policy.validate_scope((self.config.here_now_base, self.config.nor_base),
+                                            self.receipt.checksums[MANIFEST])
 
     def check_dispatch(self, dispatch):
         validate_reconcile_dispatch(self.context, dispatch)
@@ -40,6 +53,7 @@ class ReleaseDelivery:
             if self.receipt.output != expected:
                 raise ValueError('stored artifact is outside its configured JOB directory')
             verify_local_artifact(self.receipt)
+            self._check_profile()
             self._assert_current()
             return
         if (not allow_build or 'here_now_started' in receipts
@@ -55,6 +69,7 @@ class ReleaseDelivery:
         self._assert_current()
         self.receipt = self.builder.build(actual, self.root / str(self.context.job_id))
         self._record('static_build', self.receipt.as_record())
+        self._check_profile()
         self._assert_current()
 
     @property
@@ -72,6 +87,7 @@ class ReleaseDelivery:
         if self.receipt is None:
             raise ValueError('immutable artifact was not prepared before ledger claim')
         verify_local_artifact(self.receipt)
+        self._check_profile()
         self._assert_current()
         self._record('here_now_started', {'slug': self.config.here_now_slug,
                                          'content_digest': self.receipt.content_digest})
@@ -91,6 +107,7 @@ class ReleaseDelivery:
         if self.receipt is None:
             return False
         verify_local_artifact(self.receipt)
+        self._check_profile()
         receipt = self.client.reconcile(self.config.here_now_slug, self.receipt)
         if receipt is None:
             return False
