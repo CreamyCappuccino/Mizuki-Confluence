@@ -40,7 +40,7 @@ def _environment(name: str) -> str:
     return value
 
 
-def _worker(settings: LocalSettings):
+def _worker(settings: LocalSettings, *, html_policy=None):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from .composition import create_release_worker
@@ -50,12 +50,13 @@ def _worker(settings: LocalSettings):
         config=settings.release,
         projection_database_url=_environment('CONFLUENCE_PROJECTION_DATABASE_URL'),
         project_root=settings.project_root, release_root=settings.release_root,
-        here_now_client=HereNowClient(load_here_now_api_key()))
+        here_now_client=HereNowClient(load_here_now_api_key()), html_policy=html_policy)
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', required=True, type=Path)
+    parser.add_argument('--html-policy', type=Path, help='explicit owner-owned here.now HTML verification profile')
     sub = parser.add_subparsers(dest='action', required=True)
     sub.add_parser('plan', help='read configuration only; no DB or network')
     sub.add_parser('init-projection', help='create Confluence projection schema in the explicit target DB')
@@ -66,17 +67,28 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         settings = load_settings(args.config)
+        policy = None
+        if args.html_policy is not None:
+            from .html_policy import load_html_policy
+            if args.action not in {'plan', 'run', 'reconcile'}:
+                raise ValueError('HTML policy is only for plan/run/reconcile')
+            if args.action == 'run' and not args.job_ref:
+                raise ValueError('HTML policy run requires an exact approved JOB')
+            policy = load_html_policy(args.html_policy)
+            policy.validate_bases((settings.release.here_now_base, settings.release.nor_base))
         if args.action == 'plan':
             print('Confluence Phase 2A | article publish/withdraw')
             print(f'pipeline: {settings.release.pipeline_key}')
             print('discovery: discouraged | approval: Pressroom APR | runtime: not started')
+            if policy is not None:
+                print(f'HTML verification: {policy.format} | policy sha256: {policy.sha256}')
             return 0
         if args.action == 'init-projection':
             from .projection import PostgresProjectionStore
             PostgresProjectionStore(_environment('CONFLUENCE_PROJECTION_DATABASE_URL')).initialize_schema()
             print('projection: initialized | publication: not requested')
             return 0
-        worker = _worker(settings)
+        worker = _worker(settings, html_policy=policy)
         if args.action == 'retry':
             worker.jobs.retry(args.job_ref)
             print(f'{args.job_ref} | retry queued | not yet published')
