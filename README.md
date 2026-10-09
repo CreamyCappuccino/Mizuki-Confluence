@@ -80,3 +80,12 @@ it never strips arbitrary received metadata. Non-HTML stays raw exact, and
 original artifacts, manifest pins and publication identities are preserved.
 See the spec for saved-byte replay, exact-JOB reconciliation, policy evidence,
 and the distinction between local tests and live acceptance.
+
+## Visible project-local storage
+
+[Storage relocation](docs/CONFLUENCE_STORAGE_RELOCATION.md) keeps the existing
+developer project in place and puts private runtime/release/evidence/checkpoint
+data under its ignored, owner-only subdirectories. One explicit, hash-pinned
+artifact-location record can read an unchanged historical BuildReceipt at a new
+physical path; it neither rewrites the receipt nor authorizes publication. The
+filesystem migration helper is plan-first and never deletes old data.
