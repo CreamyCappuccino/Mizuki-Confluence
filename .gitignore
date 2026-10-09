@@ -64,3 +64,9 @@ tmp/
 
 # OS / tooling miscellany
 Thumbs.db
+
+# Project-local private runtime, frozen releases and recovery evidence
+/runtime/
+/releases/
+/evidence/
+/checkpoints/
