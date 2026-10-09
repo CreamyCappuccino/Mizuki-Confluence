@@ -19,9 +19,10 @@ class WorkerResult:
 
 
 class ReleaseWorker:
-    def __init__(self, jobs, bridge, config: ReleaseConfig, *, runtime_guard=None):
+    def __init__(self, jobs, bridge, config: ReleaseConfig, *, runtime_guard=None, required_job_ref: str | None = None):
         self.jobs, self.bridge, self.config = jobs, bridge, config
         self.runtime_guard = runtime_guard
+        self.required_job_ref = required_job_ref
 
     def run_once(self, job_ref: str | None = None) -> WorkerResult:
         return self._run(job_ref, reconcile=False)
@@ -30,6 +31,8 @@ class ReleaseWorker:
         return self._run(job_ref, reconcile=True)
 
     def _run(self, job_ref, *, reconcile):
+        if self.required_job_ref is not None and job_ref != self.required_job_ref:
+            raise ValueError('relocated artifact worker requires its exact JOB')
         # As in current AIL, normal releases and presentation share this lock.
         if self.runtime_guard is not None:
             self.runtime_guard.assert_current()
