@@ -10,6 +10,7 @@ from confluence_pressroom.here_now_html import HereNowHtmlPolicy
 
 from .adapter import HereNowDestinationAdapter
 from .artifacts import ReleaseBuilder
+from .artifact_location import ArtifactLocation
 from .authority import CanonicalReleaseReader
 from .delivery import ReleaseDelivery
 from .job_store import ReleaseJobStore
@@ -20,10 +21,12 @@ from .worker import ReleaseWorker
 
 class PublicationBridge:
     def __init__(self, factory, config, jobs, projection, builder, client, release_root, runtime_guard,
-                 *, readback=verify_public_artifact, html_policy: HereNowHtmlPolicy | None = None):
+                 *, readback=verify_public_artifact, html_policy: HereNowHtmlPolicy | None = None,
+                 artifact_location: ArtifactLocation | None = None):
         self.factory, self.config, self.jobs = factory, config, jobs
         self.runtime_guard, self.readback = runtime_guard, readback
         self.html_policy = html_policy
+        self.artifact_location = artifact_location
         self.projection, self.builder, self.client, self.root = projection, builder, client, release_root
 
     def may_have_delivered(self, context):
@@ -41,7 +44,8 @@ class PublicationBridge:
         delivery = ReleaseDelivery(context, config=self.config, jobs=self.jobs,
             authority=CanonicalReleaseReader(self.factory), projection=self.projection,
             builder=self.builder, client=self.client, release_root=self.root, runtime_guard=self.runtime_guard,
-            readback=self.readback, html_policy=self.html_policy)
+            readback=self.readback, html_policy=self.html_policy,
+            artifact_location=self.artifact_location)
         delivery.prepare(allow_build=not reconcile)
         if self.runtime_guard is not None:
             self.runtime_guard.assert_current()
@@ -77,12 +81,15 @@ class PublicationBridge:
 
 def create_release_worker(session_factory, *, config, projection_database_url: str,
                           project_root: Path, release_root: Path, here_now_client,
-                          html_policy: HereNowHtmlPolicy | None = None):
+                          html_policy: HereNowHtmlPolicy | None = None,
+                          artifact_location: ArtifactLocation | None = None):
     """Construct an explicit local worker; do not migrate, register, or publish."""
     from .runtime_guard import ReleaseRuntimeGuard
     if html_policy is not None:
         # Target validation before creating stores or capturing a runtime.
         html_policy.validate_bases((config.here_now_base, config.nor_base))
+    if artifact_location is not None:
+        artifact_location.validate_runtime(release_root, config.pipeline_key)
     guard = ReleaseRuntimeGuard.capture(project_root)
     jobs = ReleaseJobStore(session_factory, config, release_root)
     projection = PostgresProjectionStore(projection_database_url)
@@ -90,5 +97,6 @@ def create_release_worker(session_factory, *, config, projection_database_url: s
                              config=config, source_commit=guard.source_commit)
     bridge = PublicationBridge(session_factory, config, jobs, projection, builder,
                                here_now_client, release_root, guard,
-                               html_policy=html_policy)
-    return ReleaseWorker(jobs, bridge, config, runtime_guard=guard)
+                               html_policy=html_policy, artifact_location=artifact_location)
+    return ReleaseWorker(jobs, bridge, config, runtime_guard=guard,
+                         required_job_ref=None if artifact_location is None else artifact_location.job_ref)
