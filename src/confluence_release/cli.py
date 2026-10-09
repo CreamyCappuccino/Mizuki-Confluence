@@ -40,7 +40,7 @@ def _environment(name: str) -> str:
     return value
 
 
-def _worker(settings: LocalSettings, *, html_policy=None):
+def _worker(settings: LocalSettings, *, html_policy=None, artifact_location=None):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from .composition import create_release_worker
@@ -50,15 +50,17 @@ def _worker(settings: LocalSettings, *, html_policy=None):
         config=settings.release,
         projection_database_url=_environment('CONFLUENCE_PROJECTION_DATABASE_URL'),
         project_root=settings.project_root, release_root=settings.release_root,
-        here_now_client=HereNowClient(load_here_now_api_key()), html_policy=html_policy)
+        here_now_client=HereNowClient(load_here_now_api_key()), html_policy=html_policy,
+        **({} if artifact_location is None else {'artifact_location': artifact_location}))
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', required=True, type=Path)
     parser.add_argument('--html-policy', type=Path, help='explicit owner-owned here.now HTML verification profile')
+    parser.add_argument('--artifact-location', type=Path, help='explicit owner-owned frozen artifact location record')
     sub = parser.add_subparsers(dest='action', required=True)
-    sub.add_parser('plan', help='read configuration only; no DB or network')
+    sub.add_parser('plan', help='read configuration only; no DB or network').add_argument('job_ref', nargs='?')
     sub.add_parser('init-projection', help='create Confluence projection schema in the explicit target DB')
     run = sub.add_parser('run', help='run one already-approved JOB')
     run.add_argument('job_ref', nargs='?')
@@ -67,6 +69,14 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         settings = load_settings(args.config)
+        location = None
+        if args.artifact_location is not None:
+            from .artifact_location import load_artifact_location
+            if args.action not in {'plan', 'run', 'reconcile'} or not args.job_ref:
+                raise ValueError('artifact location requires plan/run/reconcile and an exact JOB')
+            location = load_artifact_location(args.artifact_location)
+            location.validate_runtime(settings.release_root, settings.release.pipeline_key)
+            location.validate_job(args.job_ref)
         policy = None
         if args.html_policy is not None:
             from .html_policy import load_html_policy
@@ -82,13 +92,16 @@ def main(argv=None) -> int:
             print('discovery: discouraged | approval: Pressroom APR | runtime: not started')
             if policy is not None:
                 print(f'HTML verification: {policy.format} | policy sha256: {policy.sha256}')
+            if location is not None:
+                print(f'Artifact location: {location.job_ref} | record sha256: {location.sha256}')
             return 0
         if args.action == 'init-projection':
             from .projection import PostgresProjectionStore
             PostgresProjectionStore(_environment('CONFLUENCE_PROJECTION_DATABASE_URL')).initialize_schema()
             print('projection: initialized | publication: not requested')
             return 0
-        worker = _worker(settings, html_policy=policy)
+        worker = _worker(settings, html_policy=policy,
+                         **({} if location is None else {'artifact_location': location}))
         if args.action == 'retry':
             worker.jobs.retry(args.job_ref)
             print(f'{args.job_ref} | retry queued | not yet published')
