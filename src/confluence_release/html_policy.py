@@ -7,7 +7,8 @@ import os
 from pathlib import Path
 import stat
 
-from confluence_pressroom.here_now_html import HereNowHtmlPolicy
+from confluence_pressroom.here_now_html import FORMAT, HereNowHtmlPolicy
+from confluence_pressroom.here_now_image_html import IMAGE_FORMAT, HereNowImageHtmlPolicy
 
 MAX_POLICY_BYTES = 16_384
 
@@ -34,7 +35,15 @@ def load_html_policy(path: Path) -> HereNowHtmlPolicy:
         raise ValueError('HTML policy exceeds size bound')
     values = json.loads(raw.decode('utf-8'), object_pairs_hook=_unique_object)
     required = {'format', 'here_now_base', 'nor_base', 'title', 'description'}
-    allowed = {field.name for field in fields(HereNowHtmlPolicy)}
-    if not isinstance(values, dict) or not required <= values.keys() or values.keys() - allowed:
+    if not isinstance(values, dict) or not isinstance(values.get('format'), str):
+        raise ValueError('explicit HTML policy format is required')
+    policy_type = {FORMAT: HereNowHtmlPolicy, IMAGE_FORMAT: HereNowImageHtmlPolicy}.get(values['format'])
+    if policy_type is None:
+        raise ValueError('unsupported HTML policy format')
+    if policy_type is HereNowImageHtmlPolicy:
+        required |= {'image_url', 'image_width', 'image_height',
+                     'expected_manifest_sha256'}
+    allowed = {field.name for field in fields(policy_type)}
+    if not required <= values.keys() or values.keys() - allowed:
         raise ValueError('invalid HTML policy fields')
-    return HereNowHtmlPolicy(**values)
+    return policy_type(**values)
