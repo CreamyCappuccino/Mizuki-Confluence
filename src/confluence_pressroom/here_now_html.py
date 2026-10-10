@@ -84,6 +84,10 @@ class HereNowHtmlPolicy:
     def __post_init__(self):
         if self.format != FORMAT:
             raise ReleaseReadbackMismatch('unsupported HTML transformation policy')
+        self._validate_common()
+
+    def _validate_common(self):
+        """Shared target/content validation without changing v1 JSON or hashes."""
         for base in (self.here_now_base, self.nor_base):
             if validate_base(base) != base:
                 raise ReleaseReadbackMismatch('profile bases must be normalized')
@@ -131,12 +135,15 @@ class HereNowHtmlPolicy:
             raise ReleaseReadbackMismatch('HTML transformation cannot cover non-HTML')
         position = _head_offset(original)
         url = target_url(base, relative)
-        tags = (
+        tags = self._tags(url)
+        block = (self.block_prefix + self.tag_separator.join(tags) + self.block_suffix).encode('utf-8')
+        return original[:position] + block + original[position:]
+
+    def _tags(self, url: str) -> tuple[str, ...]:
+        return (
             f'<meta property="og:title" content="{escape(self.title, quote=True)}" />',
             f'<meta property="og:description" content="{escape(self.description, quote=True)}" />',
             f'<meta property="og:url" content="{escape(url, quote=True)}" />',
             '<meta property="og:type" content="website" />',
             '<meta name="twitter:card" content="summary" />',
         )
-        block = (self.block_prefix + self.tag_separator.join(tags) + self.block_suffix).encode('utf-8')
-        return original[:position] + block + original[position:]
