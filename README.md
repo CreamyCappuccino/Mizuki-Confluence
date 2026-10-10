@@ -89,3 +89,10 @@ data under its ignored, owner-only subdirectories. One explicit, hash-pinned
 artifact-location record can read an unchanged historical BuildReceipt at a new
 physical path; it neither rewrites the receipt nor authorizes publication. The
 filesystem migration helper is plan-first and never deletes old data.
+
+[Explicit nine-meta image representation](docs/CONFLUENCE_HTML_TRANSFORM_V2.md)
+adds `here-now-og/v2` for the separately observed image/card metadata. V1 profiles
+and hashes are unchanged. V2 fixes nine tags and their order, requires a manifest
+pin and a site-bound image reference, and goes through the same relocated-artifact
+recovery path. This implementation does not activate a policy or complete a live
+JOB; saved-file replay and current delivery verification remain separate gates.
