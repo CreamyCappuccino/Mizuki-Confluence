@@ -13,6 +13,7 @@ from confluence_release.config import ROBOTS
 
 def legacy_shell(body, title, *, lang='ja', **unused):
     return (f'<!doctype html><html lang="{escape(lang, quote=True)}"><head>'
+            '<meta charset="utf-8">'
             f'<meta name="robots" content="{ROBOTS}">'
             f'<title>{escape(title)}</title></head><body>{body}</body></html>')
 
