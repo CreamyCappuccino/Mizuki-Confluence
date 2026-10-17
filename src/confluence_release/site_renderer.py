@@ -25,7 +25,9 @@ def text(ja: str, en: str) -> str:
     return f'<span data-ja="{e(ja, quote=True)}" data-en="{e(en, quote=True)}">{e(ja)}</span>'
 
 
-def shell(body: str, title: str, *, depth: int = 0, lang: str = 'ja', photo: bool = False) -> str:
+def shell(body: str, title: str, *, canonical_url: str, description: str,
+          og_type: str = 'website', depth: int = 0, lang: str = 'ja',
+          photo: bool = False) -> str:
     root = '../' * depth
     nav = [("index.html", "最新の記録", "Writings"),
            ("writers.html", "書き手", "Writers"),
@@ -40,6 +42,12 @@ def shell(body: str, title: str, *, depth: int = 0, lang: str = 'ja', photo: boo
 <html lang="{e(lang)}" data-theme="light" data-scene="window" id="top">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="{ROBOTS}"><meta name="color-scheme" content="light dark">
+<meta name="description" content="{e(description, quote=True)}">
+<meta property="og:title" content="{e(title, quote=True)}">
+<meta property="og:description" content="{e(description, quote=True)}">
+<meta property="og:type" content="{e(og_type, quote=True)}">
+<meta property="og:url" content="{e(canonical_url, quote=True)}">
+<link rel="canonical" href="{e(canonical_url, quote=True)}">
 <title>{e(title)}</title><link rel="icon" href="{root}assets/mark.svg" type="image/svg+xml">
 <script src="{root}assets/preferences.js"></script><link rel="stylesheet" href="{root}assets/styles.css"></head>
 <body><div class="flow-field" aria-hidden="true"></div>
@@ -95,7 +103,9 @@ def render_pages(articles: tuple[ProjectionArticle, ...], config: ReleaseConfig)
 <div class="reading-byline"><span>{e(name)}</span><time datetime="{e(str(p['published_on']))}">{e(str(p['published_on']))}</time></div></header>
 <div class="reading-body">{p['rendered_html']}</div></article></main>'''
         pages[route] = shell(body, str(p['title']) + ' — Confluence', depth=2,
-                             lang=str(p['locale'])).encode('utf-8')
+                             lang=str(p['locale']), canonical_url=f'{config.site_base}/{route}',
+                             description=str(p.get('excerpt') or 'A writing shared on Confluence.'),
+                             og_type='article').encode('utf-8')
         search.append(dict(manuscript_ref=p['manuscript_ref'], revision_ref=p['revision_ref'],
                            title=p['title'], excerpt=p.get('excerpt'), author_label=name,
                            published_on=p['published_on'], category_paths=p['category_paths'],
@@ -128,7 +138,9 @@ def render_pages(articles: tuple[ProjectionArticle, ...], config: ReleaseConfig)
 <div class="stream-end"><span id="release-count" aria-live="polite"></span>
 <button class="more-button" id="release-more" hidden>{text('続きをひらく','More writings')}</button></div>
 <noscript><p>JavaScriptなしでも全記事を読むことができます。</p></noscript></section></main>'''
-    pages['index.html'] = shell(home, 'Confluence', photo=True).encode('utf-8')
+    pages['index.html'] = shell(home, 'Confluence', photo=True,
+        canonical_url=f'{config.site_base}/',
+        description='Different voices, shared writings. A place for words to meet again.').encode('utf-8')
     def filter_link(label, kind, value, count):
         url = 'index.html?' + urlencode({kind: value}) + '#latest'
         return f'<a class="browse-item" href="{e(url,quote=True)}"><span>{e(label)}</span><small>{count}</small>→</a>'
@@ -140,11 +152,15 @@ def render_pages(articles: tuple[ProjectionArticle, ...], config: ReleaseConfig)
         '<section id="categories" class="browse-section"><h2>' + text('カテゴリ','Categories') + '</h2><div class="browse-grid">' + cat
         + '</div></section><section id="tags" class="browse-section"><h2>' + text('タグ','Tags') + '</h2><div class="browse-grid">' + tag
         + '</div></section><section id="archive" class="browse-section"><h2>' + text('アーカイブ','Archive') + '</h2><div class="browse-grid">' + months + '</div></section></main>')
-    pages['browse.html'] = shell(browse, 'Browse — Confluence').encode('utf-8')
+    pages['browse.html'] = shell(browse, 'Browse — Confluence',
+        canonical_url=f'{config.site_base}/browse.html',
+        description='Browse Confluence writings by category, tag, and archive.').encode('utf-8')
     writer_body = '<main id="main" class="interior shell"><header class="interior-heading"><h1>' + text('書き手','Writers') + '</h1></header>' + ''.join(
         f'<section class="writer-row" id="{e(ref)}"><span>≈</span><h2>{e(name)}</h2>'
         + filter_link(name,'author',ref,writer_counts[ref]) + '</section>'
         for ref, name in sorted(writers.items())) + '</main>'
-    pages['writers.html'] = shell(writer_body, 'Writers — Confluence').encode('utf-8')
+    pages['writers.html'] = shell(writer_body, 'Writers — Confluence',
+        canonical_url=f'{config.site_base}/writers.html',
+        description='Meet the writers sharing their words on Confluence.').encode('utf-8')
     pages['search.json'] = (json.dumps(search, ensure_ascii=False, sort_keys=True) + '\n').encode('utf-8')
     return pages
