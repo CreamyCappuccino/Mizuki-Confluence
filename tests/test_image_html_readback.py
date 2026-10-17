@@ -8,7 +8,8 @@ from unittest.mock import patch
 from confluence_pressroom.public_release_readback import _require_checksum, UNKNOWN_ROUTE
 from confluence_pressroom.release_checksums import ReleaseReadbackMismatch, MANIFEST
 from confluence_pressroom.release_http import ReadbackResponse, target_url
-from confluence_release.artifacts import ReleaseBuilder, read_files, sha256
+from confluence_release.artifacts import read_files, sha256
+from legacy_artifact_test_support import LegacyReleaseBuilder as ReleaseBuilder
 from confluence_release.readback import ReadbackUnknown, verify_public_artifact
 from image_html_test_support import IMAGE, SOURCE, image_policy, literal_image_block
 from test_here_now_html_policy import policy, literal_block
