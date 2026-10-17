@@ -15,7 +15,8 @@ from confluence_pressroom.release_http import ReadbackResponse, target_url
 from confluence_release.artifact_location import (
     ArtifactLocation, absolute_path, load_artifact_location, record_digest,
 )
-from confluence_release.artifacts import ReleaseBuilder, read_files
+from confluence_release.artifacts import read_files
+from legacy_artifact_test_support import LegacyReleaseBuilder as ReleaseBuilder
 from confluence_release.cli import main
 from confluence_release.composition import create_release_worker
 from confluence_release.delivery import ReleaseDelivery
