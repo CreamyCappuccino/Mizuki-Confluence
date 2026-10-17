@@ -7,7 +7,8 @@ import unittest
 from confluence_pressroom.release_checksums import MANIFEST
 from confluence_pressroom.release_http import ReadbackResponse, target_url
 from confluence_pressroom.public_release_readback import UNKNOWN_ROUTE
-from confluence_release.artifacts import ReleaseBuilder, read_files, sha256
+from confluence_release.artifacts import read_files, sha256
+from legacy_artifact_test_support import LegacyReleaseBuilder as ReleaseBuilder
 from confluence_release.readback import ReadbackUnknown, verify_public_artifact
 from phase2_support import CONFIG, article, assets
 from test_here_now_html_policy import literal_block, policy
