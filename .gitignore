@@ -70,3 +70,6 @@ Thumbs.db
 /releases/
 /evidence/
 /checkpoints/
+
+# Local-only internal design and development archive
+/docs/private/
