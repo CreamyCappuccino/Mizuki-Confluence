@@ -117,16 +117,19 @@ class HereNowClient:
             raise ValueError('invalid here.now slug')
         return self._request('GET', f'{API_BASE}/api/v1/publish/{slug}')
 
-    def publish(self, slug: str, receipt: BuildReceipt) -> HereNowReceipt:
+    def publish(self, slug: str, receipt: BuildReceipt, *, base_version_id: str | None = None) -> HereNowReceipt:
         verify_local_artifact(receipt)
         files = read_files(receipt.output)
         before = self.site_details(slug)
+        if base_version_id is not None and (not base_version_id or required_text(before, 'currentVersionId') != base_version_id):
+            raise HereNowError('here.now base version changed before prepare')
+        precondition = {} if base_version_id is None else {'baseVersionId': base_version_id}
         if manifest_hashes(before) == receipt.checksums:
             return HereNowReceipt(slug, required_text(before, 'currentVersionId'), 0, True)
         prepared = self._request('PUT', f'{API_BASE}/api/v1/publish/{slug}', {
             'files': [dict(path=name, size=len(data), contentType=(mimetypes.guess_type(name)[0]
                          or 'application/octet-stream'), hash=sha256(data))
-                      for name, data in sorted(files.items())], 'spaMode': False})
+                      for name, data in sorted(files.items())], 'spaMode': False, **precondition})
         upload = prepared.get('upload')
         if not isinstance(upload, dict) or not isinstance(upload.get('uploads', []), list):
             raise HereNowError('here.now prepare has invalid uploads')
@@ -152,6 +155,7 @@ class HereNowClient:
                 if not 200 <= res.status < 300:
                     raise HereNowError('here.now artifact upload failed')
         try:
+            # The provider stores the base precondition on the prepared version.
             finalized = self._request('POST', finalize_url, {'versionId': version})
             finalized_slug = required_text(finalized, 'slug')
             finalized_version = required_text(finalized, 'currentVersionId')

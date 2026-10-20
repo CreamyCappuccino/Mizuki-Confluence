@@ -1,0 +1,85 @@
+/* A quiet body of text, with more expressive light at its edges. */
+@view-transition { navigation: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) { animation: cf-page-out .22s ease both; }
+  ::view-transition-new(root) { animation: cf-page-in .45s cubic-bezier(.22,1,.36,1) both; }
+  .cf-live .cf-ripple { animation: cf-ripple .7s ease-out both; }
+  .cf-live .menu[open] nav { animation: cf-menu-open .32s cubic-bezier(.22,1,.36,1) both; transform-origin: right top; }
+  .cf-live .reading-heading h1.cf-phase, .cf-live .hero h1.cf-phase,
+  .cf-live .interior-heading h1.cf-phase {
+    animation: cf-title-light 1.5s ease both;
+  }
+  .cf-live.cf-shifting .cf-orrery { animation: cf-phase-flash .8s ease-out both; }
+  @keyframes cf-page-out { to { opacity: .45; transform: translateY(-3px); } }
+  @keyframes cf-page-in { from { opacity: .55; transform: translateY(5px); } }
+  @keyframes cf-ripple { from { opacity: .5; transform: scale(.2); } to { opacity: 0; transform: scale(9); } }
+  @keyframes cf-menu-open { from { opacity: .25; transform: translateY(-5px) scale(.97); } }
+  @keyframes cf-phase-flash { 0% { opacity: .15; } 40% { opacity: 1; } 100% { opacity: .7; } }
+  .cf-live .reading-heading h1, .cf-live .hero h1, .cf-live .interior-heading h1 {
+    animation: cf-title-light 2.2s cubic-bezier(.22, .65, .3, 1) both;
+  }
+  .cf-live .cf-orbit { animation: cf-orbit-turn 110s linear infinite; }
+  .cf-live .cf-orbit-track { animation: cf-orbit-precession 46s ease-in-out infinite alternate; }
+  .cf-live .cf-orbit-track + .cf-orbit-track { animation-name: cf-orbit-crossing; animation-duration: 61s; }
+  .cf-live .brand-current { animation: cf-brand-breathe 8s ease-in-out infinite; }
+  .cf-live .cf-arrive { animation: cf-section-light .85s cubic-bezier(.18, .7, .25, 1) both; }
+  .cf-live .reading-body blockquote.cf-arrive::before { animation: cf-node-light 1.4s ease-out both; }
+  .cf-live .reading-byline > span { transition: border-color .3s ease, box-shadow .3s ease; }
+  .cf-live .reading-byline > span:hover { border-color: var(--cf-signal); box-shadow: 0 0 18px var(--cf-halo); }
+  .cf-live .hero-image { transition: filter 1s ease, opacity 1s ease; }
+  .cf-live .menu nav a { transition: padding .25s ease, color .25s ease; }
+  .cf-live .reading-heading::after { animation: cf-connection 1.6s ease both; transform-origin: left; }
+  @keyframes cf-title-light {
+    from { background-position: 100% 50%; text-shadow: 1px 0 var(--cf-thread); }
+    60% { text-shadow: -1px 0 var(--cf-halo); }
+    to { background-position: 0% 50%; text-shadow: none; }
+  }
+  @keyframes cf-orbit-turn { to { transform: rotate(360deg); } }
+  @keyframes cf-orbit-precession {
+    from { transform: rotate(-28deg) scaleY(.58); }
+    to { transform: rotate(28deg) scaleY(.74); }
+  }
+  @keyframes cf-orbit-crossing {
+    from { transform: rotate(47deg) scaleY(.6); }
+    to { transform: rotate(116deg) scaleY(.44); }
+  }
+  @keyframes cf-brand-breathe {
+    0%, 100% { text-shadow: 0 0 0 transparent; }
+    50% { text-shadow: 0 0 17px var(--cf-thread); }
+  }
+  @keyframes cf-section-light {
+    from { opacity: .78; transform: translateY(7px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes cf-node-light {
+    from { box-shadow: 0 0 0 0 var(--cf-halo), 0 0 4px var(--cf-thread); }
+    60% { box-shadow: 0 0 0 9px transparent, 0 0 24px var(--cf-thread); }
+    to { box-shadow: 0 0 0 5px var(--cf-halo), 0 0 22px var(--cf-thread); }
+  }
+  @keyframes cf-connection { from { transform: scaleX(.12); } to { transform: scaleX(1); } }
+}
+/* User-selected stillness includes the pre-existing ambient animation. */
+:root[data-cf-motion='off'] *, :root[data-cf-motion='off'] *::before,
+:root[data-cf-motion='off'] *::after {
+  animation: none !important; transition: none !important; scroll-behavior: auto !important;
+}
+:root[data-cf-motion='off'] { scroll-behavior: auto; }
+:root[data-cf-motion='off']::view-transition-old(root), :root[data-cf-motion='off']::view-transition-new(root) { animation: none; }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; } }
+:root[data-cf-motion='off'] .hero-image { transform: none !important; }
+:root.cf-sleep *, :root.cf-sleep *::before, :root.cf-sleep *::after {
+  animation-play-state: paused !important;
+}
+@media (max-width: 900px), (pointer: coarse) {
+  .cf-live .cf-orbit, .cf-live .cf-orbit-track, .cf-live .brand-current { animation: none; }
+  .cf-live .cf-arrive { animation-duration: .5s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto !important; }
+  .cf-arrive { opacity: 1 !important; transform: none !important; }
+}
+@media print {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .cf-arrive { opacity: 1 !important; transform: none !important; }
+}

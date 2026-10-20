@@ -64,7 +64,7 @@
   function drift() {
     scheduled = false;
     if (!hero) return;
-    if (reduced.matches || !fine.matches) {
+    if (reduced.matches || !fine.matches || root.dataset.cfMotion === 'off') {
       hero.style.removeProperty('--photo-drift');
       return;
     }
@@ -95,4 +95,13 @@
       if (entry.getBoundingClientRect().top > window.innerHeight) observer.observe(entry);
     });
   }
+})();
+
+/* Preserve classic/file previews when ES modules cannot be loaded. */
+(() => {
+  const source = document.currentScript?.src;
+  if (!source) return;
+  import(new URL('./resonance.js', source).href)
+    .then(({ enhanceResonance }) => enhanceResonance())
+    .catch(() => { /* All content and standard navigation remain usable. */ });
 })();
