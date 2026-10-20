@@ -1,6 +1,6 @@
 /* Living Currents. Optional, local-only enhancement; original article stays intact. */
 import { createResonanceField } from './resonance-field.js';
-import { enhanceResonanceInteraction } from './resonance-interaction.js';
+import { enhanceResonanceInteraction, createReadingTides } from './resonance-interaction.js';
 
 export function enhanceResonance() {
   const root = document.documentElement;
@@ -25,6 +25,7 @@ export function enhanceResonance() {
   progress.className = 'cf-progress'; progress.setAttribute('aria-hidden', 'true');
   document.body.append(progress);
   const article = document.querySelector('.reading-body');
+  const tides = createReadingTides(article);
   if (article) {
     const track = document.createElement('div');
     track.className = 'cf-reading-line'; track.setAttribute('aria-hidden', 'true');
@@ -57,7 +58,7 @@ export function enhanceResonance() {
     root.dataset.cfMotion = enabled ? 'on' : 'off';
     root.classList.toggle('cf-live', enabled);
     root.classList.toggle('cf-sleep', document.hidden);
-    field?.setEnabled(enabled); labels();
+    field?.setEnabled(enabled); tides.setEnabled(enabled); labels();
   }
   motion.addEventListener('click', () => {
     preferred = !preferred;
@@ -91,6 +92,7 @@ export function enhanceResonance() {
     let active = -1;
     headings.forEach((heading, index) => { if (heading.getBoundingClientRect().top < innerHeight * .4) active = index; });
     headings.forEach((heading, index) => heading.classList.toggle('cf-active', index === active));
+    tides.update();
   }
   function schedule() { if (!scheduled && !document.hidden) scheduled = requestAnimationFrame(update); }
   window.addEventListener('scroll', schedule, { passive: true });

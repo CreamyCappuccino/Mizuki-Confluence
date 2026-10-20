@@ -105,6 +105,58 @@ body::before {
   background: var(--cf-signal); box-shadow: 0 0 8px var(--cf-thread);
 }
 .reading-body { position: relative; }
+/* Reading Tides: light travels behind the copy, never through its glyphs. */
+.cf-tides {
+  isolation: isolate;
+  --cf-tide-jade: #23765f15;
+  --cf-tide-gold: #95713b0f;
+  --cf-tide-line: #23765f14;
+  --cf-tide-strength: .8;
+}
+:root[data-theme='dark'] .cf-tides {
+  --cf-tide-jade: #91dcc110;
+  --cf-tide-gold: #ddba800c;
+  --cf-tide-line: #91dcc113;
+}
+.cf-tides::before {
+  content: ''; position: absolute; pointer-events: none; z-index: -1;
+  inset-inline: -16px; height: min(540px, 100%);
+  top: clamp(0px, calc(var(--cf-reader-y, 220px) - 220px), max(0px, calc(100% - 540px)));
+  background:
+    radial-gradient(ellipse at 38% 43%, var(--cf-tide-jade), transparent 68%),
+    radial-gradient(ellipse at 72% 60%, var(--cf-tide-gold), transparent 62%),
+    repeating-radial-gradient(ellipse at 42% 48%, transparent 0 27px, var(--cf-tide-line) 28px, transparent 29px 57px);
+  mask-image: radial-gradient(ellipse 60% 48% at 50% 50%, #000 18%, transparent 100%);
+  opacity: 0;
+}
+.cf-live .cf-tides::before { opacity: var(--cf-tide-strength); }
+.cf-tides > p { position: relative; }
+.cf-live .cf-tides > p.cf-reading-current {
+  background: radial-gradient(ellipse at 30% 50%, var(--cf-tide-gold), transparent 76%);
+}
+.cf-tides > p::after {
+  content: ''; position: absolute; pointer-events: none;
+  left: -12px; top: .8em; width: 2px; height: 1.1em;
+  background: linear-gradient(transparent, var(--cf-gold), transparent);
+  opacity: 0;
+}
+.cf-live .cf-tides > p.cf-reading-current::after { opacity: .55; }
+@media (prefers-reduced-motion: no-preference) {
+  .cf-live .cf-tides::before { animation: cf-tide-reflection 18s ease-in-out infinite alternate; }
+  @keyframes cf-tide-reflection {
+    from { background-position: -12px 0, 9px -8px, 0 0; }
+    to { background-position: 12px 9px, -9px 8px, 8px -6px; }
+  }
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .cf-tides { --cf-tide-strength: .4; }
+  .cf-tides::before { inset-inline: -8px; }
+  .cf-live .cf-tides > p.cf-reading-current::after { opacity: .35; }
+}
+@media (prefers-reduced-motion: reduce), (forced-colors: active), print {
+  .cf-tides::before, .cf-tides > p::after { display: none; }
+  .cf-live .cf-tides > p.cf-reading-current { background: none; }
+}
 .reading-body > h2, .reading-body > h3 { position: relative; padding-left: 19px; }
 .reading-body > h2::before, .reading-body > h3::before {
   content: ''; position: absolute; left: 0; top: .7em; width: 5px; height: 5px;

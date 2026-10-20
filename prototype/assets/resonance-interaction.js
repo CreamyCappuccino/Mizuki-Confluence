@@ -1,4 +1,43 @@
 /* Small, event-driven accents. Never rewrite the author's text or intercept links. */
+export function createReadingTides(article) {
+  if (!article) return { setEnabled() {}, update() {} };
+  article.classList.add('cf-tides');
+  const paragraphs = [...article.querySelectorAll(':scope > p')];
+  let enabled = false, current = null;
+  function clear() {
+    current?.classList.remove('cf-reading-current');
+    current = null;
+  }
+  function update() {
+    if (!enabled || document.hidden) return;
+    const box = article.getBoundingClientRect();
+    const focus = innerHeight * .44;
+    if (box.bottom <= 0 || box.top >= innerHeight) { clear(); return; }
+    const y = Math.max(0, Math.min(box.height, focus - box.top));
+    // Read all positions before updating styles. The text itself is never touched.
+    let nearest = null, distance = Infinity;
+    for (const node of paragraphs) {
+      const rect = node.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > innerHeight) continue;
+      const gap = Math.abs((rect.top + rect.bottom) / 2 - focus);
+      if (gap < distance) { nearest = node; distance = gap; }
+    }
+    article.style.setProperty('--cf-reader-y', `${y.toFixed(1)}px`);
+    if (nearest !== current) {
+      clear(); current = nearest;
+      current?.classList.add('cf-reading-current');
+    }
+  }
+  return {
+    update,
+    setEnabled(value) {
+      enabled = value;
+      if (enabled) update();
+      else clear();
+    },
+  };
+}
+
 export function enhanceResonanceInteraction(isEnabled) {
   const fine = matchMedia('(pointer: fine)');
   const root = document.documentElement;
