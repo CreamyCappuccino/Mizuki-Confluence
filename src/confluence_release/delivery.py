@@ -9,6 +9,7 @@ from confluence_pressroom.release_checksums import MANIFEST
 
 from .artifacts import BuildReceipt, verify_local_artifact
 from .artifact_location import ArtifactLocation
+from .here_now_client import manifest_hashes, required_text
 from .projection import projection_digest
 from .readback import verify_public_artifact
 from .release_contract import validate_reconcile_dispatch
@@ -97,10 +98,19 @@ class ReleaseDelivery:
         verify_local_artifact(self.receipt)
         self._check_profile()
         self._assert_current()
-        self._record('here_now_started', {'slug': self.config.here_now_slug,
-                                         'content_digest': self.receipt.content_digest})
+        # Read the provider version before the first mutating request. The site
+        # lock serializes our own workers, while baseVersionId prevents a
+        # concurrent external update from being overwritten by this JOB.
+        active = self.client.site_details(self.config.here_now_slug)
+        base_version_id = required_text(active, 'currentVersionId')
+        manifest_hashes(active)  # Fail closed on an incomplete provider snapshot.
         self._assert_current()
-        receipt = self.client.publish(self.config.here_now_slug, self.receipt)
+        self._record('here_now_started', {'slug': self.config.here_now_slug,
+                                         'content_digest': self.receipt.content_digest,
+                                         'base_version_id': base_version_id})
+        self._assert_current()
+        receipt = self.client.publish(self.config.here_now_slug, self.receipt,
+                                      base_version_id=base_version_id)
         self._record('here_now', asdict(receipt))
         self._assert_current()
         evidence = self.readback(self.receipt, self.config, removed_paths=self.removed_paths)

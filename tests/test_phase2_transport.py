@@ -77,6 +77,20 @@ class HereNowTransportTests(unittest.TestCase):
         self.assertFalse(result.reconciled)
         self.assertEqual(self.active, self.receipt.checksums)
 
+    def test_provider_prepare_requires_exact_base_version_id(self):
+        client = HereNowClient('synthetic-key', opener=self.opener)
+        client.publish(CONFIG.here_now_slug, self.receipt, base_version_id='v2')
+        prepared = [json.loads(req.data) for req in self.requests
+                    if req.method == 'PUT' and req.full_url.startswith('https://here.now/')]
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(prepared[0]['baseVersionId'], 'v2')
+
+    def test_stale_base_rejected_before_upload_or_finalize(self):
+        client = HereNowClient('synthetic-key', opener=self.opener)
+        with self.assertRaises(HereNowError):
+            client.publish(CONFIG.here_now_slug, self.receipt, base_version_id='outdated')
+        self.assertEqual([request.method for request in self.requests], ['GET'])
+
     def test_equal_manifest_skips_upload(self):
         self.active = dict(self.receipt.checksums)
         result = HereNowClient('synthetic-key', opener=self.opener).publish(

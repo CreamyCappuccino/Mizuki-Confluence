@@ -37,14 +37,17 @@ class IntegratedRuntimeTests(unittest.TestCase):
         self.builder = ReleaseBuilder(source_assets=assets(self.root), config=CONFIG,
                                       source_commit=self.guard.source_commit)
         self.events = []
-        self.client = SimpleNamespace(publish=self.publish, reconcile=self.reconcile)
+        self.client = SimpleNamespace(site_details=lambda slug: {
+            'currentVersionId': 'base-v1', 'manifest': []},
+            publish=self.publish, reconcile=self.reconcile)
         self.authority = SimpleNamespace(desired_articles=lambda c: (article(),))
         self.readback = lambda *a, **k: {'checksums': 'exact'}
 
     def dirty(self):
         (self.project/'tools/build.py').write_text('# changed after startup\n')
 
-    def publish(self, *args):
+    def publish(self, *args, **kwargs):
+        self.assertEqual(kwargs.get('base_version_id'), 'base-v1')
         self.events.append('publish')
         return HereNowReceipt('synthetic-confluence', 'v1', 1, False)
 
@@ -127,8 +130,8 @@ class IntegratedRuntimeTests(unittest.TestCase):
         self.assertEqual(self.events, [])
 
     def test_change_during_upload_blocks_readback_and_ledger_return(self):
-        def changed(*args):
-            value = self.publish(*args)
+        def changed(*args, **kwargs):
+            value = self.publish(*args, **kwargs)
             self.dirty()
             return value
         self.client.publish = changed

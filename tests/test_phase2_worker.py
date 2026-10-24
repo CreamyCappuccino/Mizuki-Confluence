@@ -7,7 +7,7 @@ import unittest
 
 from confluence_release.artifacts import ReleaseBuilder
 from confluence_release.delivery import ReleaseDelivery
-from confluence_release.here_now_client import HereNowReceipt
+from confluence_release.here_now_client import HereNowReceipt, HereNowError
 from confluence_release.worker import ReleaseWorker
 from phase2_support import CONFIG, FakeJobs, ProjectionDouble, article, assets, context, dispatch
 
@@ -58,10 +58,19 @@ class DeliveryTests(unittest.TestCase):
         self.c=context();self.jobs=FakeJobs(self.c);self.projection=ProjectionDouble()
         self.builder=ReleaseBuilder(source_assets=assets(self.root),config=CONFIG,source_commit='synthetic')
         self.events=[]
-        self.client=SimpleNamespace(publish=self.publish,reconcile=self.reconcile)
+        self.provider_version='base-v1'
+        self.publish_base_versions=[]
+        self.client=SimpleNamespace(site_details=self.site_details,
+                                    publish=self.publish,reconcile=self.reconcile)
         self.authority=SimpleNamespace(desired_articles=lambda c:(article(),))
     def tearDown(self):self.temp.cleanup()
-    def publish(self,*args):
+    def site_details(self, slug):
+        return {'currentVersionId': self.provider_version,
+                'manifest': [{'path':'index.html','hash':'synthetic-hash'}]}
+    def publish(self,*args,**kwargs):
+        self.publish_base_versions.append(kwargs.get('base_version_id'))
+        if kwargs.get('base_version_id') != self.provider_version:
+            raise HereNowError('here.now base version changed before prepare')
         self.events.append('publish')
         return HereNowReceipt('synthetic-confluence','v1',1,False)
     def reconcile(self,*args):
@@ -75,7 +84,27 @@ class DeliveryTests(unittest.TestCase):
         d=self.make();d.prepare()
         self.assertEqual(self.events,[]);self.assertIn('static_build',self.jobs.saved)
         d.perform(dispatch(self.c));self.assertEqual(self.events,['publish'])
+        self.assertEqual(self.publish_base_versions,['base-v1'])
+        self.assertEqual(self.jobs.saved['here_now_started']['base_version_id'],'base-v1')
         self.assertIn('public_readback',self.jobs.saved)
+    def test_provider_snapshot_invalid_does_not_mark_delivery_started(self):
+        d=self.make();d.prepare()
+        self.client.site_details=lambda slug: {'currentVersionId':'base-v1'}
+        with self.assertRaises(HereNowError):d.perform(dispatch(self.c))
+        self.assertNotIn('here_now_started',self.jobs.saved)
+        self.assertEqual(self.events,[])
+    def test_provider_version_changes_before_publish_cannot_overwrite(self):
+        d=self.make();d.prepare()
+        def stale_snapshot(slug):
+            self.provider_version = 'new-v2'  # External writer moved after our snapshot.
+            return {'currentVersionId':'base-v1',
+                    'manifest':[{'path':'index.html','hash':'synthetic-hash'}]}
+        self.client.site_details = stale_snapshot
+        with self.assertRaises(HereNowError):d.perform(dispatch(self.c))
+        self.assertEqual(self.publish_base_versions,['base-v1'])
+        self.assertEqual(self.events,[])
+        self.assertEqual(self.jobs.saved['here_now_started']['base_version_id'],'base-v1')
+        self.assertNotIn('public_readback',self.jobs.saved)
     def test_reconcile_no_reupload_no_rebuild(self):
         d=self.make();d.prepare();first=d.receipt.checksums.copy()
         self.builder.build=lambda *a,**k:self.fail('must not rebuild')
