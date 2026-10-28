@@ -34,7 +34,8 @@
 .search-disclosure button, .filter-banner { font-size: .9375rem; }
 .filter-banner { flex-wrap: wrap; }
 .rail-description, .reply-detail, .reply-count > span, .rail-footnote,
-.browse-item small, .response header { font-size: .75rem; }
+.replies-page .reply-detail, .browse-item small, .response header { font-size: .75rem; }
+.cf-motion { font-size: .8125rem; }
 .reply-name, .browse-item { font-size: 1rem; }
 .reading-heading h1 {
   --cf-title-base: clamp(2.5rem, 2rem + 1.6vw, 3.25rem);
