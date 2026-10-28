@@ -104,4 +104,7 @@
   import(new URL('./resonance.js', source).href)
     .then(({ enhanceResonance }) => enhanceResonance())
     .catch(() => { /* All content and standard navigation remain usable. */ });
+  import(new URL('./title-fit.js', source).href)
+    .then(({ enhanceTitleFit }) => enhanceTitleFit())
+    .catch(() => { /* CSS keeps readable sizes and natural wrapping. */ });
 })();

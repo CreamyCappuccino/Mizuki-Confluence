@@ -1,0 +1,103 @@
+/* Readable type, after the scene/effect layers. Root size remains user-owned. */
+.masthead { height: auto; min-height: 78px; flex-wrap: wrap; padding-block: .5rem; }
+.header-actions { flex-wrap: wrap; gap: .625rem; }
+.brand-note, .footer-note { font-size: .8125rem; }
+.icon-button, .theme-button, .locale-button, .menu summary { font-size: .875rem; }
+.menu nav a, .site-footer nav, .text-link, .more-button { font-size: .9375rem; }
+.menu nav { max-width: calc(100vw - 2 * var(--gutter)); }
+.hero { height: auto; min-height: 20rem; }
+.hero-copy { max-width: 38rem; padding-block: 2rem 4.25rem; }
+.hero h1 { font-size: clamp(2.125rem, 1.6rem + 2vw, 3rem); }
+.hero-intro { font-size: 1.0625rem; line-height: 1.9; }
+.hero-copy .eyebrow, .section-heading .eyebrow, .eyebrow,
+.gateways small, .closing-copy .eyebrow, .site-footer small { font-size: .6875rem; }
+.scene-controls { max-width: calc(100% - 2 * var(--gutter)); }
+.scene-controls button { font-size: .875rem; min-height: 44px; }
+.scene-number, .entry-number, .list-count { font-size: .75rem; }
+.gateways > a, .gateways > a > span { min-width: 0; }
+.gateways strong { font-size: 1rem; overflow-wrap: anywhere; }
+.gateways small { overflow-wrap: anywhere; }
+.section-heading { flex-wrap: wrap; }
+.section-heading h2 { font-size: clamp(1.5rem, 1.2rem + 1vw, 1.875rem); }
+.content-grid { column-gap: clamp(2rem, 4vw, 4rem); }
+.entry { grid-template-columns: 1.5rem minmax(0, 1fr) 9rem; }
+.entry-copy h3 { font-size: clamp(1.625rem, 1.3rem + 1vw, 2.125rem); line-height: 1.5; }
+.entry-copy h3 a { display: inline; }
+.entry-copy p {
+  font-size: clamp(1rem, .94rem + .2vw, 1.0625rem); line-height: 1.85;
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+.entry-meta, .entry-meta time, .stream-end, .search-disclosure,
+.search-disclosure form p, .sample-note { font-size: .8125rem; }
+.entry-meta { overflow-wrap: anywhere; }
+.search-disclosure input { font-size: 1rem; min-width: min(12rem, 100%); }
+.search-disclosure button, .filter-banner { font-size: .9375rem; }
+.filter-banner { flex-wrap: wrap; }
+.rail-description, .reply-detail, .reply-count > span, .rail-footnote,
+.browse-item small, .response header { font-size: .75rem; }
+.reply-name, .browse-item { font-size: 1rem; }
+.reading-heading h1 {
+  --cf-title-base: clamp(2.5rem, 2rem + 1.6vw, 3.25rem);
+  --cf-title-floor-rem: 2.125;
+  font-size: var(--cf-title-fit, var(--cf-title-base)); line-height: 1.5;
+  overflow-wrap: anywhere; height: auto; max-height: none;
+}
+.reading-heading h1[data-cf-title-density='display'] {
+  --cf-title-base: clamp(2.75rem, 2.25rem + 1.8vw, 3.75rem);
+}
+.reading-heading h1[data-cf-title-density='large'] {
+  --cf-title-base: clamp(2.5rem, 2rem + 1.6vw, 3.5rem);
+}
+.reading-heading h1[data-cf-title-density='compact'] {
+  --cf-title-base: clamp(2.25rem, 1.85rem + 1.3vw, 3rem);
+}
+.reading-byline, .reading-byline > span, .reading-byline > time {
+  font-size: .8125rem; line-height: 1.8;
+}
+.reading-byline > span, .reading-byline > time { max-width: 100%; overflow-wrap: anywhere; }
+.reading-body {
+  font-size: clamp(1.125rem, 1.04rem + .3vw, 1.25rem);
+  line-height: 2; max-width: 40em; overflow-wrap: anywhere;
+}
+.reading-body p { margin-bottom: 1.5em; }
+.reading-body h2 { font-size: 1.5em; }
+.reading-body h3 { font-size: 1.25em; }
+.reading-body blockquote { font-size: 1.15em; }
+.reading-deck { font-size: 1.1em; }
+.response p { font-size: 1.0625rem; }
+.closing-photo { height: auto; min-height: 15rem; }
+.site-footer nav { flex-wrap: wrap; }
+.site-footer small > span { float: none; display: inline-block; }
+@media (max-width: 900px) {
+  .entry { grid-template-columns: 1.25rem minmax(0, 1fr) 7.5rem; }
+}
+@media (max-width: 600px) {
+  .masthead { min-height: 64px; gap: .25rem .75rem; }
+  .header-actions { gap: .25rem; }
+  .brand { font-size: 1.5625rem; }
+  .locale-button { font-size: .875rem; }
+  .menu summary, .menu summary > span { font-size: 0; }
+  .hero { min-height: 20rem; }
+  .hero-copy { padding-top: 1.25rem; padding-bottom: 4.5rem; }
+  .hero h1 { font-size: clamp(1.75rem, 1.3rem + 2.5vw, 2.125rem); }
+  .hero-intro { font-size: 1rem; max-width: 100%; }
+  .hero-copy .eyebrow { font-size: .6875rem; }
+  .scene-controls { right: var(--gutter); bottom: .5rem; }
+  .scene-controls button { font-size: .875rem; }
+  .scene-number { font-size: .75rem; }
+  .gateways strong { font-size: .9375rem; }
+  .gateways small { font-size: .6875rem; letter-spacing: .08em; }
+  .gateways > a { gap: .5rem; }
+  .entry { grid-template-columns: minmax(0, 1fr); }
+  .entry-copy h3 { font-size: clamp(1.5rem, 1.2rem + 1.5vw, 1.75rem); }
+  .entry-copy p { font-size: 1rem; }
+  .entry-meta { flex-wrap: wrap; gap: .375rem 1rem; }
+  .reading-heading h1,
+  .reading-heading h1[data-cf-title-density] {
+    --cf-title-base: clamp(2rem, 1.6rem + 2vw, 2.375rem);
+    --cf-title-floor-rem: 1.875;
+  }
+  .reading-body { font-size: 1.125rem; }
+  .reading-body blockquote { font-size: 1.1em; }
+  .footer-note { font-size: .8125rem; }
+}
